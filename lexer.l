@@ -7,11 +7,16 @@
 /* helpers */
 DIGIT  [0-9]
 LETTER [a-zA-Z]
+LP     "("
+RP     ")"
+WS     (" "|"\n"|"\t")
 
 /* basics */
 ID     ({LETTER}|"_")({LETTER}|{DIGIT}|"_")*
 REAL   ({DIGIT}*"."{DIGIT}+)|({DIGIT}+"."{DIGIT}*)
 INT    {DIGIT}+
+CBEG   "(*"
+CEND   "*)"
 
 /* scope delimiters */
 LET    "let"
@@ -44,18 +49,29 @@ DIVI   "/"
 DIVR   "/."
 MODI   "%"
 
-NEGI  "~"
-NEGR  "~."
+NEGI   "~"
+NEGR   "~."
 
 /* values and functions */
-BIND  "="
-VAL   "val"
-FUN   "fun"
-FN    "fn"
+BIND   "="
+VAL    "val"
+FUN    "fun"
+FN     "fn"
 
+/* records and lists */
+RBEG   "{"
+REND   "}"
+LBEG   "["
+LEND   "]"
+SEP    ","
+GET    "."
 
 %%
   printf("\nTokenizer running, ^D to exit\n");
+
+
+{CBEG} { printf("CBEG\n"); }
+{CEND} { printf("CEND\n"); }
 
 {LET}  { printf("LET\n"); }
 {IN}   { printf("IN\n"); }
@@ -86,9 +102,20 @@ FN    "fn"
 {FUN}  { printf("FUN\n"); }
 {FN}   { printf("FN\n"); }
 
+{RBEG} { printf("RBEG\n"); }
+{REND} { printf("REND\n"); }
+{LBEG} { printf("LBEG\n"); }
+{LEND} { printf("LEND\n"); }
+{SEP}  { printf("SEP\n"); }
+{GET}  { printf("GET\n"); }
+
 {ID}   { printf("ID{%s}\n", yytext); }
 {REAL} { printf("REAL{%s}\n", yytext); }
 {INT}  { printf("INT{%s}\n", yytext); }
+
+{LP}   { printf("LP\n"); }
+{RP}   { printf("RP\n"); }
+{WS}   { }
 
 %%
 
