@@ -3,42 +3,53 @@
 
 class ASTNode {
 public:
-    std::string toString() {
-        return "{ASTNode}";
+    virtual std::string toString() = 0;
+    virtual ~ASTNode() {
     }
 };
 
 class StatementNode: public ASTNode {
 public:
-    std::string toString() {
-        return "{StatementNode}";
-    }
+  std::string toString() {
+    return "{StatementNode}";
+  };
+
+  virtual ~StatementNode() {
+  }
 };
 
 class ExpressionNode: public ASTNode {
 public:
     std::string toString() {
-        return "{ExpNode}";
+      return "{ExpressionNode}";
+    };
+
+    ~ExpressionNode() {
     }
 };
 
 class BlockNode: public ASTNode {
 public:
 
-    BlockNode(std::list < StatementNode > stmnts) : statements(stmnts){
-
+    BlockNode(std::list < StatementNode* > stmnts) : statements(stmnts){
     }
 
     std::string toString() {
         std::string str = "{BlockNode: ";
-        for(StatementNode s : statements) {
-            str += s.toString() + " ";
+        for(StatementNode * s : statements) {
+            str += s->toString() + " ";
         }
         str += "}";
         return str;
     }
 
-    std::list < StatementNode > statements;
+    ~BlockNode() {
+      for(StatementNode * s : statements) {
+          delete s;
+      }
+    }
+
+    std::list < StatementNode* > statements;
 };
 
 class IntNode: public ExpressionNode {
@@ -67,14 +78,14 @@ public:
     double value;
 };
 
-class IdentfierNode: public ExpressionNode {
+class IdentifierNode: public ExpressionNode {
 public:
-    IdentfierNode(std::string val) {
+    IdentifierNode(std::string val) {
         id = val;
     }
 
     std::string toString() {
-        return "{IdentfierNode: " + id + "}";
+        return "{IdentifierNode: " + id + "}";
     }
 
     std::string id;
@@ -82,103 +93,141 @@ public:
 
 class BinOpNode: public ExpressionNode {
 public:
-    BinOpNode(IdentfierNode op, ExpressionNode left, ExpressionNode right)
+    BinOpNode(IdentifierNode * op, ExpressionNode * left, ExpressionNode * right)
         : operation(op), lhs(left), rhs(right) {
     }
 
     std::string toString() {
-        return "{BinOpNode: " + lhs.toString() + " " + operation.toString()  + " " + rhs.toString() + "}";
+        return "{BinOpNode: " + lhs->toString() + " " + operation->toString()  + " " + rhs->toString() + "}";
     }
 
-    IdentfierNode operation;
-    ExpressionNode lhs;
-    ExpressionNode rhs;
+    ~BinOpNode() {
+      delete operation;
+      delete lhs;
+      delete rhs;
+    }
+
+    IdentifierNode * operation;
+    ExpressionNode * lhs;
+    ExpressionNode * rhs;
 
 };
 
 class InvokeNode: public ExpressionNode {
 public:
-    InvokeNode(IdentfierNode id, ExpressionNode expr) : fun(id), args(expr) {
+    InvokeNode(IdentifierNode * id, ExpressionNode * expr) : fun(id), args(expr) {
 
     }
 
     std::string toString() {
-        return "{InvokeNode: " + fun.toString() + " " + args.toString() + "}";
+        return "{InvokeNode: " + fun->toString() + " " + args->toString() + "}";
     }
 
-    IdentfierNode fun;
-    ExpressionNode args;
+    ~InvokeNode(){
+      delete fun;
+      delete args;
+    }
+
+    IdentifierNode * fun;
+    ExpressionNode * args;
 };
 
 class IfNode: public ExpressionNode {
 public:
-    IfNode(ExpressionNode cond, ExpressionNode left, ExpressionNode right)
+    IfNode(ExpressionNode * cond, ExpressionNode * left, ExpressionNode * right)
         : condition(cond), ifthen(left), ifelse(right) {
     }
 
     std::string toString() {
-        return "{IfNode: " + condition.toString() + "?" + ifthen.toString()  + ":" + ifelse.toString() + "}";
+        return "{IfNode: " + condition->toString() + "?" + ifthen->toString()  + ":" + ifelse->toString() + "}";
     }
 
-    ExpressionNode condition;
-    ExpressionNode ifthen;
-    ExpressionNode ifelse;
+    ~IfNode(){
+      delete condition;
+      delete ifthen;
+      delete ifelse;
+    }
+
+    ExpressionNode * condition;
+    ExpressionNode * ifthen;
+    ExpressionNode * ifelse;
 };
 
 class FunDeclNode: public StatementNode {
 public:
-    FunDeclNode(IdentfierNode id, IdentfierNode p, ExpressionNode expr) : fun(id), param(p), body(expr) {
-
+    FunDeclNode(IdentifierNode * id, IdentifierNode * p, ExpressionNode * expr)
+      : fun(id), param(p), body(expr) {
     }
 
     std::string toString() {
-        return "{FunDeclNode: " + fun.toString() + " " + param.toString() + " = " + body.toString() +  "}";
+        return "{FunDeclNode: " + fun->toString() + " " + param->toString() + " = " + body->toString() +  "}";
     }
 
-    IdentfierNode fun;
-    IdentfierNode param;
-    ExpressionNode body;
+    ~FunDeclNode() {
+      delete fun;
+      delete param;
+      delete body;
+    }
+
+    IdentifierNode * fun;
+    IdentifierNode * param;
+    ExpressionNode * body;
 };
 
 class ValNode: public StatementNode {
 public:
-    ValNode(IdentfierNode idtr, ExpressionNode expr) : id(idtr), val(expr) {
+    ValNode(IdentifierNode * idtr, ExpressionNode * expr) : id(idtr), val(expr) {
 
     }
 
     std::string toString() {
-        return "{ValNode: " + id.toString() + " = " + val.toString() +  "}";
+        return "{ValNode: " + id->toString() + " = " + val->toString() +  "}";
     }
 
-    IdentfierNode id;
-    ExpressionNode val;
+    ~ValNode() {
+      delete id;
+      delete val;
+    }
+
+    IdentifierNode * id;
+    ExpressionNode * val;
 };
 
 class LambdaNode: public ExpressionNode {
 public:
-    LambdaNode(IdentfierNode p, ExpressionNode expr) : param(p), body(expr) {
+    LambdaNode(IdentifierNode * p, ExpressionNode * expr) : param(p), body(expr) {
 
     }
 
     std::string toString() {
-        return "{LambdaNode: " + param.toString() + " => " + body.toString() +  "}";
+        return "{LambdaNode: " + param->toString() + " => " + body->toString() +  "}";
     }
 
-    IdentfierNode param;
-    ExpressionNode body;
+    ~LambdaNode() {
+      delete param;
+      delete body;
+    }
+
+    IdentifierNode * param;
+    ExpressionNode * body;
 };
 
 
 class LetNode: public ExpressionNode {
 public:
-    LetNode(BlockNode decls, ExpressionNode expr) : let(decls), in(expr) {
+    LetNode(BlockNode * decls, ExpressionNode * expr) : let(decls), in(expr) {
 
     }
 
     std::string toString() {
-        return "{LetNode: " + let.toString() + " in " + in.toString() +  "}";
+        return "{LetNode: " + let->toString() + " in " + in->toString() +  "}";
     }
 
-    BlockNode let;
-    ExpressionNode in;
+    ~LetNode() {
+      delete let;
+      delete in;
+    }
+
+    BlockNode * let;
+    ExpressionNode * in;
 };
