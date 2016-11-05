@@ -7,6 +7,7 @@
 /* helpers */
 DIGIT  [0-9]
 LETTER [a-zA-Z]
+UNIT   "{}"|"()"
 LP     "("
 RP     ")"
 WS     (" "|"\n"|"\t")
@@ -19,6 +20,7 @@ REAL   ({DIGIT}*"."{DIGIT}+)|({DIGIT}+"."{DIGIT}*)
 INT    {DIGIT}+
 CBEG   "(*"
 CEND   "*)"
+CONS   "::"
 
 /* scope delimiters */
 LET    "let"
@@ -114,6 +116,8 @@ ERR    . /* things between two errors may also be erroneous */
 {VAL}  { printf("VAL\n"); }
 {FUN}  { printf("FUN\n"); }
 {FN}   { printf("FN\n"); }
+{UNIT} { printf("UNIT\n"); }
+{CONS} { printf("CONS\n"); }
 
 {RBEG} { printf("RBEG\n"); }
 {REND} { printf("REND\n"); }
