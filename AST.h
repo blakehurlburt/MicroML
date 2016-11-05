@@ -65,6 +65,19 @@ public:
     int value;
 };
 
+class CharNode: public ExpressionNode {
+public:
+    CharNode(char val) {
+        value = val;
+    }
+
+    std::string toString() {
+        return "{IntNode: " + std::to_string(value) + "}";
+    }
+
+    char value;
+};
+
 class RealNode: public ExpressionNode {
 public:
     RealNode(double val) {
@@ -76,6 +89,19 @@ public:
     }
 
     double value;
+};
+
+class BoolNode: public ExpressionNode {
+public:
+    BoolNode(bool val) {
+        value = val;
+    }
+
+    std::string toString() {
+        return "{BoolNode: }" + std::to_string(value) + "}";
+    }
+
+    bool value;
 };
 
 class IdentifierNode: public ExpressionNode {
