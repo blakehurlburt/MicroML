@@ -10,6 +10,8 @@ LETTER [a-zA-Z]
 LP     "("
 RP     ")"
 WS     (" "|"\n"|"\t")
+CHR    \'(\\.|[^\'])\'
+STR    \"(\\.|[^\"])*\"
 
 /* basics */
 ID     ({LETTER}|"_")({LETTER}|{DIGIT}|"_")*
@@ -66,6 +68,8 @@ LEND   "]"
 SEP    ","
 GET    "."
 
+ERR    . /* things between two errors may also be erroneous */
+
 %%
   printf("\nTokenizer running, ^D to exit\n");
 
@@ -109,6 +113,9 @@ GET    "."
 {SEP}  { printf("SEP\n"); }
 {GET}  { printf("GET\n"); }
 
+{STR}  { printf("STR{%s}\n", yytext); }
+{CHR}  { printf("CHR{%s}\n", yytext); }
+
 {ID}   { printf("ID{%s}\n", yytext); }
 {REAL} { printf("REAL{%s}\n", yytext); }
 {INT}  { printf("INT{%s}\n", yytext); }
@@ -117,7 +124,9 @@ GET    "."
 {RP}   { printf("RP\n"); }
 {WS}   { }
 
-%%
+{ERR}  { printf("ERR{%s}\n", yytext); }
+
+%%s
 
 int main() {
   yylex();
