@@ -1,0 +1,4 @@
+val x = true
+val y = false
+val w = !x
+val z = x && y || (!x && !y)

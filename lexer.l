@@ -38,6 +38,10 @@ GE     ">="
 LT     "<"
 LE     "<="
 
+/* booleans and boolean operators */
+BOOL   "true"|"false"
+AND    "&&"
+OR     "||"
 NOT    "!"
 
 /* arithmetic operators */
@@ -92,6 +96,11 @@ ERR    . /* things between two errors may also be erroneous */
 {GT}   { printf("GT\n"); }
 {GE}   { printf("GE\n"); }
 
+{BOOL} { printf("BOOL{%s}\n", yytext); }
+{AND}  { printf("AND\n"); }
+{OR}   { printf("OR\n"); }
+{NOT}  { printf("NOT\n"); }
+
 {ADDI} { printf("ADDI\n"); }
 {ADDR} { printf("ADDR\n"); }
 {SUBI} { printf("SUBI\n"); }
@@ -124,7 +133,6 @@ ERR    . /* things between two errors may also be erroneous */
 {RP}   { printf("RP\n"); }
 {WS}   { }
 
-{ERR}  { printf("ERR{%s}\n", yytext); }
 
 %%s
 
