@@ -15,22 +15,12 @@ extern "C"
 
 #include "AST.h"
 
-#include "CPPAST.h"
-#include "CodeGen.h"
-#include "Translate.h"
-
 #define YYSTYPE ASTNode*
 
 #include "lex.yy.c"
 
-int yyerror(std::string s)
-{
-  std::cerr << "syntax error: " << yylval << std::endl;
-  return 0;
-}
 
 std::stack<BlockNode*> blocks;
-
 
 extern int yylex();
 
@@ -40,11 +30,18 @@ extern int yylex();
       FN RBEG REND LBEG LEND SEP GET ERR
 */
 
+
+int yyerror(std::string s)
+{
+  std::cerr << "syntax error: " << yylval << std::endl;
+  return 0;
+}
+
 %}
 
 %token UNIT LP RP NL CHR STR ID REAL INT CBEG CEND CONS
        IF THEN ELSE EQ NE GT GE LT LE BOOL AND OR NOT ADD SUB MUL DIV MOD NEG
-       BIND VAL FUN FN RBEG REND LBEG LEND SEP GET LET IN END
+       BIND VAL FUN FN RBEG REND LBEG LEND SEP GET LET IN END ERR
 
 %left SEP
 %right BIND, IF, THEN, ELSE
@@ -60,11 +57,8 @@ extern int yylex();
 
 %%
 
-block: state block { }
-     | state       { }
-
-state: VAL ID BIND exp nl {blocks.top()->add(new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)); $$ = $1;}
-    | FUN ID ID BIND exp nl {blocks.top()->add(new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)); $$ = $1;}
+state: VAL ID BIND exp {std::cout << "valbind" << std::endl; blocks.top()->add(new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)); $$ = $1;}
+     | FUN ID ID BIND exp {std::cout << "fundecl" << std::endl; blocks.top()->add(new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)); $$ = $1;}
 
 exp: LP exp RP {$$ = $2;}
   | NEG exp {$$ = new InvokeNode(new IdentifierNode("_neg_"), (ExpressionNode*) $2);}
@@ -87,20 +81,21 @@ exp: LP exp RP {$$ = $2;}
   | REAL {$$ = $1;}
   | BOOL {$$ = $1;}
   | ID {$$ = $1;}
+  | RBEG bindings REND { }
   ;
 
-nl: NL nl { }
-  | NL { }
-
+bindings: bindings SEP ID BIND exp { $$ = $1;  ((RecordNode*)$$)->add(new ValNode((IdentifierNode*) $3, (ExpressionNode*) $5)); }
+        | ID BIND exp { $$ = new RecordNode(); ((RecordNode*)$$)->add(new ValNode((IdentifierNode*) $1, (ExpressionNode*) $3)); }
+        |   { $$ = new RecordNode(); }
+        ;
 %%
 
 int main() {
   blocks.push(new BlockNode());
-   if (yyparse() == 0) //parsing worked
-   //  for (StatementNode* s : blocks.top()->statements)
-      // std::cout << blocks.top()->toString() << std::endl;
-      std::cout << generateCode(pgrmTranslate(blocks.top())) << std::endl;
+  //if (yyparse() == 0) //parsing worked
+  //  for (StatementNode* s : blocks.top()->statements)
 
- //while(yylex());
+
+ while(yylex()) { std::cout << blocks.top()->toString() << std::endl; }
   return 0;
 }
