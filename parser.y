@@ -31,19 +31,28 @@ extern int yylex();
 
 %}
 
-%token UNIT LP RP CHR STR ID REAL INT CBEG CEND CONS LET IN END
+%token UNIT LP RP NL CHR STR ID REAL INT CBEG CEND CONS LET IN END
        IF THEN ELSE EQ NE GT GE LT LE BOOL AND OR NOT ADD SUB MUL DIV MOD NEG
        BIND VAL FUN FN RBEG REND LBEG LEND SEP GET ERR
 
-%right BIND
+%left SEP
+%right BIND, IF, THEN, ELSE
+%left OR
+%left AND
+%left EQ, NE
+%left GE, GT, LE, LT
 %left ADD, SUB
 %left MUL, DIV, MOD
+%right NEG, NOT
+%right GET
+%left LP, RP
 
 %%
 
 
-state: VAL ID BIND exp {blocks.top().push_back((StatementNode*) ($$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)));}
-    |  FUN ID ID BIND exp {blocks.top().push_back((StatementNode*) ($$ = new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)));}
+
+state: VAL ID BIND exp NL {blocks.top().push_back((StatementNode*) ($$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)));}
+    |  FUN ID ID BIND exp NL {blocks.top().push_back((StatementNode*) ($$ = new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)));}
 
 exp:  expn          {$$ = $1;}
     | expb          {$$ = $1;}
@@ -51,6 +60,7 @@ exp:  expn          {$$ = $1;}
 expn: INT           {$$ = $1;}
     | REAL          {$$ = $1;}
     | ID            {$$ = $1;}
+    | LP expn RP    {$$ = $2;}
     | expn ADD expn {$$ = new BinOpNode(new IdentifierNode("_add_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
     | expn SUB expn {$$ = new BinOpNode(new IdentifierNode("_sub_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
     | expn MUL expn {$$ = new BinOpNode(new IdentifierNode("_mul_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
@@ -61,6 +71,7 @@ expn: INT           {$$ = $1;}
 
 
 expb: BOOL          {$$ = $1;}
+    | LP expb RP    {$$ = $2;}
     | expb AND expb {$$ = new BinOpNode(new IdentifierNode("_and_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
     | expb OR  expb {$$ = new BinOpNode(new IdentifierNode("_or_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
     | NOT expb      {$$ = new InvokeNode(new IdentifierNode("_not_"), (ExpressionNode*) $1); }

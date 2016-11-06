@@ -29,10 +29,12 @@
 /* helpers */
 DIGIT  [0-9]
 LETTER [a-zA-Z]
-UNIT   "{}"|"()"
+
 LP     "("
 RP     ")"
-WS     (" "|"\n"|"\t")
+UNIT   "{}"|"()"
+NL     "\n"
+WS     (" "|"\t")
 CHR    \'(\\.|[^\'])\'
 STR    \"(\\.|[^\"])*\"
 
@@ -94,7 +96,8 @@ ERR    . /* things between two errors may also be erroneous */
 
 %%
 
-
+{LP}   { ECHO; return LP; }
+{RP}   { ECHO; return RP; }
 
 {CBEG} { ECHO; return CBEG; }
 {CEND} { ECHO; return CEND; }
@@ -138,7 +141,6 @@ ERR    . /* things between two errors may also be erroneous */
 {SEP}  { ECHO; return SEP; }
 {GET}  { ECHO; return GET; }
 
-
 {CHR}  { if (*yytext == '/') yylval = new CharNode(atoc(yytext));
          else yylval = new CharNode(*yytext); ECHO; return CHR; }
 
@@ -146,8 +148,7 @@ ERR    . /* things between two errors may also be erroneous */
 {REAL} { yylval = new RealNode(atof(yytext)); ECHO; return REAL; }
 {INT}  { yylval = new IntNode(atoi(yytext)); ECHO; return INT; }
 
-{LP}   { ECHO; return LP; }
-{RP}   { ECHO; return RP; }
+{NL}   { ECHO; return NL; }
 {WS}   { }
 
 
