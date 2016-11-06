@@ -1,41 +1,36 @@
 #ifndef ARDUINO_BINDINGS_H
 #define ARDUINO_BINDINGS_H
 
-#include<Arduino.h>
+#include <Arduino.h>
 #include "runtime.h"
 
-void Serial.println(Obj* o) {
-  if(o->type() == "int") {
+void println__(Obj* o) {
+  if(o->type() == "int")
+    Serial.println(unwrapInt(o));
 
-  }
-  else if (o->type() == "real") {
+  else if (o->type() == "real")
+    Serial.println(unwrapReal(o));
 
-  }
-  else if (o->type() == "record") {
-
-  }
-  else {
-
-  }
-}
-
-void pinMode(int pin, int mode) {
+  else if (o->type() == "record")
+    Serial.println(unwrapString(o));
 
 }
 
-void digitalWrite(int pin, int value) {
-  Arduino::digitalWrite(pin, )
+void pinMode__(int pin, int mode) {
+  pinMode(pin, mode);
 }
 
-char Serial.read() {
+void digitalWrite__(int pin, int value) {
+  digitalWrite(pin, value);
+}
 
+char read__() {
+  return Serial.read();
 }
 
 
-void delay(int ms) {
-  Arduino::delay(ms);
+void delay__(int ms) {
+  delay(ms);
 }
-
-
 
 #endif
