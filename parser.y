@@ -66,6 +66,11 @@ block: state block { }
 state: VAL ID BIND exp nl {blocks.top()->add(new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)); $$ = $1;}
     | FUN ID ID BIND exp nl {blocks.top()->add(new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)); $$ = $1;}
 
+bindings: bindings SEP ID BIND exp { $$ = $1;  ((RecordNode*)$$)->add(new ValNode((IdentifierNode*) $3, (ExpressionNode*) $5)); }
+        | ID BIND exp { $$ = new RecordNode(); ((RecordNode*)$$)->add(new ValNode((IdentifierNode*) $1, (ExpressionNode*) $3)); }
+        |  /*Empty*/ {$$ = new RecordNode(); }
+        ;
+
 exp: LP exp RP {$$ = $2;}
   | NEG exp {$$ = new InvokeNode(new IdentifierNode("_neg_"), (ExpressionNode*) $2);}
   | NOT exp {$$ = new InvokeNode(new IdentifierNode("_not_"), (ExpressionNode*) $2);}
@@ -87,6 +92,7 @@ exp: LP exp RP {$$ = $2;}
   | REAL {$$ = $1;}
   | BOOL {$$ = $1;}
   | ID {$$ = $1;}
+  | RBEG bindings REND {$$ = $2;}
   ;
 
 nl: NL nl { }
