@@ -92,7 +92,7 @@ LEND   "]"
 SEP    ","
 GET    "."
 
-ERR    . /* things between two errors may also be erroneous */
+ERR    (.) /* things between two errors may also be erroneous */
 
 %%
 
@@ -102,7 +102,7 @@ ERR    . /* things between two errors may also be erroneous */
 {CBEG} { ECHO; return CBEG; }
 {CEND} { ECHO; return CEND; }
 
-{LET}  { ECHO; return LET; }
+{LET}  { ECHO; printf("lexer sees LET\n"); return LET; }
 {IN}   { ECHO; return IN; }
 {END}  { ECHO; return END; }
 
@@ -150,7 +150,6 @@ ERR    . /* things between two errors may also be erroneous */
 
 {NL}   { ECHO; return NL; }
 {WS}   { }
-
 
 %%
 

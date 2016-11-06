@@ -24,9 +24,9 @@ std::stack<std::list<StatementNode*>> blocks;
 extern int yylex();
 
 /*
-      UNIT LP RP CHR STR ID REAL INT BOOL CBEG CEND CONS LET IN END
+      UNIT CHR STR ID REAL INT BOOL CBEG CEND CONS LET IN END
       IF THEN ELSE
-      BIND VAL FUN FN RBEG REND LBEG LEND SEP GET ERR
+      FN RBEG REND LBEG LEND SEP GET ERR
 */
 
 %}
@@ -45,14 +45,21 @@ extern int yylex();
 %left MUL, DIV, MOD
 %right NEG, NOT
 %right GET
+%left ID EXPN
 %left LP, RP
 
 %%
 
 
 
-state: VAL ID BIND exp NL {blocks.top().push_back((StatementNode*) ($$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)));}
-    |  FUN ID ID BIND exp NL {blocks.top().push_back((StatementNode*) ($$ = new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)));}
+block: state nl block  {blocks.top().push_front((StatementNode*) $1); $$ = nullptr;}
+     | state nl      {blocks.top().push_front((StatementNode*) $1); $$ = nullptr;}
+     | state  {blocks.top().push_front((StatementNode*) $1); $$ = nullptr;}
+
+spec: LET           {std::cout << "parser sees LET" << std::endl; blocks.push(std::list<StatementNode*>()); $$ = nullptr;}
+
+state: VAL ID BIND exp {$$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4);}
+    |  FUN ID ID BIND exp {$$ = new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5);}
 
 exp:  expn          {$$ = $1;}
     | expb          {$$ = $1;}
@@ -68,9 +75,12 @@ expn: INT           {$$ = $1;}
     | expn MOD expn {$$ = new BinOpNode(new IdentifierNode("_mod_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
     | expn NEG expn {$$ = new InvokeNode(new IdentifierNode("_neg_"), (ExpressionNode*) $1); }
     | IF expb THEN expn ELSE expn {$$ = new IfNode((ExpressionNode*) $2, (ExpressionNode*) $4, (ExpressionNode*) $6); }
-
+    | ID expn       {$$ = new InvokeNode((IdentifierNode*) $1, (ExpressionNode*) $2);}
+    | FN ID BIND expn {$$ = new LambdaNode((IdentifierNode*) $2, (ExpressionNode*) $4);}
+    | spec block IN expn END {$$ = new LetNode(new BlockNode(blocks.top()), (ExpressionNode*) $4); blocks.pop(); }
 
 expb: BOOL          {$$ = $1;}
+    | ID            {$$ = $1;}
     | LP expb RP    {$$ = $2;}
     | expb AND expb {$$ = new BinOpNode(new IdentifierNode("_and_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
     | expb OR  expb {$$ = new BinOpNode(new IdentifierNode("_or_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
@@ -84,8 +94,12 @@ expb: BOOL          {$$ = $1;}
     | expn LE expn  {$$ = new BinOpNode(new IdentifierNode("_le_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
     | expn GE expn  {$$ = new BinOpNode(new IdentifierNode("_ge_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
     | IF expb THEN expb ELSE expb {$$ = new IfNode((ExpressionNode*) $2, (ExpressionNode*) $4, (ExpressionNode*) $6); }
+    | ID expb       {$$ = new InvokeNode((IdentifierNode*) $1, (ExpressionNode*) $2);}
+    | FN ID BIND expb {$$ = new LambdaNode((IdentifierNode*) $2, (ExpressionNode*) $4);}
+    | spec block IN expb END {std::cout << "spec block in expb end" << std::endl; $$ = new LetNode(new BlockNode(blocks.top()), (ExpressionNode*) $4); blocks.pop(); }
 
-
+nl: NL nl {}
+  | NL {}
 
 %%
 
@@ -93,8 +107,6 @@ int yyerror(std::string s)
 {
   std::cerr << s << std::endl;
 }
-
-BlockNode* absyn_root;
 
 int main() {
   blocks.push(std::list<StatementNode*>());
