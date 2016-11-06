@@ -1,6 +1,6 @@
 %{
-    #include <stdio.h>
-    #include <string.h>
+    #include <iostream>
+    #include <string>
 
     #include "y.tab.h"
 
@@ -141,6 +141,9 @@ GET    "."
 
 {CHR}  { if (*yytext == '/') yylval = new CharNode(atoc(yytext));
          else yylval = new CharNode(*yytext); return CHR; }
+
+{STR}  { std::string *str = new std::string(yytext);
+  yylval = new StringNode(str->substr(1, str->length()-2)); return STR; }
 
 {ID}   { yylval = new IdentifierNode(yytext); return ID; }
 {REAL} { yylval = new RealNode(atof(yytext)); return REAL; }
