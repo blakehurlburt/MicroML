@@ -11,6 +11,7 @@ extern "C"
 #include <string>
 #include <stack>
 #include <list>
+#include <stdexcept>
 
 #include "AST.h"
 
@@ -19,7 +20,7 @@ extern "C"
 #include "lex.yy.c"
 
 
-std::stack<std::list<StatementNode*>> blocks;
+std::stack<BlockNode*> blocks;
 
 extern int yylex();
 
@@ -31,9 +32,9 @@ extern int yylex();
 
 %}
 
-%token UNIT LP RP NL CHR STR ID REAL INT CBEG CEND CONS LET IN END
+%token UNIT LP RP NL CHR STR ID REAL INT CBEG CEND CONS
        IF THEN ELSE EQ NE GT GE LT LE BOOL AND OR NOT ADD SUB MUL DIV MOD NEG
-       BIND VAL FUN FN RBEG REND LBEG LEND SEP GET ERR
+       BIND VAL FUN FN RBEG REND LBEG LEND SEP GET LET IN END ERR
 
 %left SEP
 %right BIND, IF, THEN, ELSE
@@ -45,72 +46,60 @@ extern int yylex();
 %left MUL, DIV, MOD
 %right NEG, NOT
 %right GET
-%left ID EXPN
 %left LP, RP
 
 %%
 
+block:
+     | block state
 
+state: LP state RP {$$ = $2;}
+    | VAL ID BIND exp {blocks.top()->add(new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)); $$ = new CharNode('@');}
+    | FUN ID ID BIND exp {blocks.top()->add(new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)); $$ = new CharNode('@');}
+    | state state {$$ = (((CharNode*)$1)->value == '@' && ((CharNode*)$2)->value == '@')? new CharNode('@') : new CharNode('!');}
 
-block: state nl block  {blocks.top().push_front((StatementNode*) $1); $$ = nullptr;}
-     | state nl      {blocks.top().push_front((StatementNode*) $1); $$ = nullptr;}
-     | state  {blocks.top().push_front((StatementNode*) $1); $$ = nullptr;}
+exp: LP exp RP {$$ = $2;}
+  | NEG exp {$$ = new InvokeNode(new IdentifierNode("_neg_"), (ExpressionNode*) $2);}
+  | NOT exp {$$ = new InvokeNode(new IdentifierNode("_not_"), (ExpressionNode*) $2);}
+  | exp ADD exp {$$ = new BinOpNode(new IdentifierNode("_add_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | exp SUB exp {$$ = new BinOpNode(new IdentifierNode("_sub_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | exp MUL exp {$$ = new BinOpNode(new IdentifierNode("_mul_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | exp DIV exp {$$ = new BinOpNode(new IdentifierNode("_div_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | exp MOD exp {$$ = new BinOpNode(new IdentifierNode("_mod_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | exp EQ exp {$$ = new BinOpNode(new IdentifierNode("_eq_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | exp NE exp {$$ = new BinOpNode(new IdentifierNode("_ne_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | exp LT exp {$$ = new BinOpNode(new IdentifierNode("_lt_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | exp LE exp {$$ = new BinOpNode(new IdentifierNode("_le_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | exp GT exp {$$ = new BinOpNode(new IdentifierNode("_gt_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | exp GE exp {$$ = new BinOpNode(new IdentifierNode("_ge_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
+  | IF exp THEN exp ELSE exp {$$ = new IfNode((ExpressionNode*) $2, (ExpressionNode*) $4, (ExpressionNode*) $6);}
+  | ID LP exp RP {$$ = new InvokeNode((IdentifierNode*) $1, (ExpressionNode*) $3);}
+  | FN ID BIND exp {$$ = new LambdaNode((IdentifierNode*) $2, (ExpressionNode*) $4);}
+  | INT {$$ = $1;}
+  | REAL {$$ = $1;}
+  | BOOL {$$ = $1;}
+  | ID {$$ = $1;}
+  | LET block IN exp END {$$ }
+  ;
 
-spec: LET           {std::cout << "parser sees LET" << std::endl; blocks.push(std::list<StatementNode*>()); $$ = nullptr;}
+other: LET {blocks.push(new BlockNode()); } block IN exp END {$$ = new LetNode(blocks.top(), (ExpressionNode*) $2); blocks.pop();}
 
-state: VAL ID BIND exp {$$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4);}
-    |  FUN ID ID BIND exp {$$ = new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5);}
-
-exp:  expn          {$$ = $1;}
-    | expb          {$$ = $1;}
-
-expn: INT           {$$ = $1;}
-    | REAL          {$$ = $1;}
-    | ID            {$$ = $1;}
-    | LP expn RP    {$$ = $2;}
-    | expn ADD expn {$$ = new BinOpNode(new IdentifierNode("_add_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expn SUB expn {$$ = new BinOpNode(new IdentifierNode("_sub_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expn MUL expn {$$ = new BinOpNode(new IdentifierNode("_mul_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expn DIV expn {$$ = new BinOpNode(new IdentifierNode("_div_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expn MOD expn {$$ = new BinOpNode(new IdentifierNode("_mod_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expn NEG expn {$$ = new InvokeNode(new IdentifierNode("_neg_"), (ExpressionNode*) $1); }
-    | IF expb THEN expn ELSE expn {$$ = new IfNode((ExpressionNode*) $2, (ExpressionNode*) $4, (ExpressionNode*) $6); }
-    | ID expn       {$$ = new InvokeNode((IdentifierNode*) $1, (ExpressionNode*) $2);}
-    | FN ID BIND expn {$$ = new LambdaNode((IdentifierNode*) $2, (ExpressionNode*) $4);}
-    | spec block IN expn END {$$ = new LetNode(new BlockNode(blocks.top()), (ExpressionNode*) $4); blocks.pop(); }
-
-expb: BOOL          {$$ = $1;}
-    | ID            {$$ = $1;}
-    | LP expb RP    {$$ = $2;}
-    | expb AND expb {$$ = new BinOpNode(new IdentifierNode("_and_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expb OR  expb {$$ = new BinOpNode(new IdentifierNode("_or_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | NOT expb      {$$ = new InvokeNode(new IdentifierNode("_not_"), (ExpressionNode*) $1); }
-    | expn EQ expn  {$$ = new BinOpNode(new IdentifierNode("_eq_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expb EQ expb  {$$ = new BinOpNode(new IdentifierNode("_eq_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expn NE expn  {$$ = new BinOpNode(new IdentifierNode("_ne_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expb NE expb  {$$ = new BinOpNode(new IdentifierNode("_ne_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expn LT expn  {$$ = new BinOpNode(new IdentifierNode("_lt_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expn GT expn  {$$ = new BinOpNode(new IdentifierNode("_gt_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expn LE expn  {$$ = new BinOpNode(new IdentifierNode("_le_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | expn GE expn  {$$ = new BinOpNode(new IdentifierNode("_ge_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
-    | IF expb THEN expb ELSE expb {$$ = new IfNode((ExpressionNode*) $2, (ExpressionNode*) $4, (ExpressionNode*) $6); }
-    | ID expb       {$$ = new InvokeNode((IdentifierNode*) $1, (ExpressionNode*) $2);}
-    | FN ID BIND expb {$$ = new LambdaNode((IdentifierNode*) $2, (ExpressionNode*) $4);}
-    | spec block IN expb END {std::cout << "spec block in expb end" << std::endl; $$ = new LetNode(new BlockNode(blocks.top()), (ExpressionNode*) $4); blocks.pop(); }
-
-nl: NL nl {}
-  | NL {}
 
 %%
 
 int yyerror(std::string s)
 {
-  std::cerr << s << std::endl;
+  std::cerr << "syntax error: " << yylval << std::endl;
+  return 0;
 }
 
+
 int main() {
-  blocks.push(std::list<StatementNode*>());
+  blocks.push(new BlockNode());
   if (yyparse() == 0) //parsing worked
-    std::cout << BlockNode(blocks.top()).toString() << std::endl;
+  //  for (StatementNode* s : blocks.top()->statements)
+      std::cout << blocks.top()->toString() << std::endl;
+
+ //while(yylex());
   return 0;
 }
