@@ -15,10 +15,13 @@ int _write(){
 
 #include <list>
 #include <map>
+#include <Arduino.h>
 
 class Environment;
 
 void _error_(std::string msg) {
+    Serial.print("error: ");
+    Serial.println(msg.c_str());
     while(true) {
 
     }
@@ -184,7 +187,7 @@ public:
                 return i->find(name)->second;
             }
         }
-        _error_("not found");
+        _error_("not found: " + name);
         return nullptr;
     }
 
@@ -209,6 +212,24 @@ const Obj* invoke(std::string id, const Obj* arg, Environment* env) {
     const Obj * ret = (*(f->fun))(arg,closureEnv);
     closureEnv->pop();
     return ret;
+}
+
+const Obj* _get_(const Obj* o, std::string field, Environment* env) {
+    if(o->type() != "record") {
+        _error_("not a record");
+        return nullptr;
+    }
+
+    auto r1 = ((Rec*)o);
+    auto entry = r1->r.find(field);
+
+    if(entry == r1->r.end()) {
+        _error_("no such field");
+        return nullptr;
+    }
+
+    return entry->second;
+
 }
 
 const Obj* _add_(const Obj* o, Environment* env) {

@@ -151,6 +151,19 @@ public:
     CPPExpression* arg;
 };
 
+class CPPGetExpression: public CPPExpression {
+public:
+    CPPGetExpression(CPPExpression * a, std::string f) : field(f), rec(a) {
+    }
+
+    virtual std::string genCode() {
+        return "_get_(" + rec->genCode() + ", \"" + field + "\", env)";
+    }
+
+    std::string field;
+    CPPExpression* rec;
+};
+
 class CPPNativeExpression: public CPPExpression {
 public:
     CPPNativeExpression(std::string f, CPPExpression * a) : fun(f), arg(a) {
