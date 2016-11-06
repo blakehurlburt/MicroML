@@ -1,5 +1,1 @@
-An implementation of a simple functional programming language targeting the Teensy microcontroller.
-
-This transpiler targets C++, which is then compiled for the Teensy by g++.
-
-Our UB Hacking 2016 project.
+Our UBHacking 2016 team sought to create our own programming language: a compiled, functional language with similar constructs as Standard ML, which can be run on a Teensy microcontroller. In order to accomplish this task, we developed a grammar, Lexer, Parser, Compiler, Run-Time Environment, Garbage Collector, and support code for the language.
