@@ -7,31 +7,41 @@
 
 BlockNode* factorial() {
     return new BlockNode( \
-        std::list<StatementNode*>(1, new FunDeclNode( \
-                                      new IdentifierNode("fact"), \
-                                      new IdentifierNode("n"), \
-                                      new IfNode( \
-                                          new BinOpNode( \
-                                              new IdentifierNode("lt"), \
-                                              new IdentifierNode("n"), \
-                                              new IntNode(2) \
-                                              ), \
-                                          new IntNode(1), \
-                                          new BinOpNode( \
-                                              new IdentifierNode("mul"), \
-                                              new IdentifierNode("n"), \
-                                              new InvokeNode( \
-                                                  new IdentifierNode("fact"), \
-                                                  new BinOpNode( \
-                                                      new IdentifierNode("sub"), \
-                                                      new IdentifierNode("n"), \
-                                                      new IntNode(1) \
-                                                      ) \
-                                                  ) \
-                                              ) \
-                                          ) \
-                                      ) \
-                                  ));
+        std::list<StatementNode*>({ \
+        new FunDeclNode( \
+            new IdentifierNode("fact"), \
+            new IdentifierNode("n"), \
+            new IfNode( \
+                new BinOpNode( \
+                    new IdentifierNode("_lt_"), \
+                    new IdentifierNode("n"), \
+                    new IntNode(2) \
+                    ), \
+                new IntNode(1), \
+                new BinOpNode( \
+                    new IdentifierNode("_mul_"), \
+                    new IdentifierNode("n"), \
+                    new InvokeNode( \
+                        new IdentifierNode("fact"), \
+                        new BinOpNode( \
+                            new IdentifierNode("_sub_"), \
+                            new IdentifierNode("n"), \
+                            new IntNode(1) \
+                            ) \
+                        ) \
+                    ) \
+                ) \
+            ), \
+        new FunDeclNode( \
+            new IdentifierNode("enter"), \
+            new IdentifierNode("_"), \
+            new InvokeNode( \
+                new IdentifierNode("fact"), \
+                new IntNode(5) \
+                )
+            )
+    })
+        );
 };
 
 int main() {
