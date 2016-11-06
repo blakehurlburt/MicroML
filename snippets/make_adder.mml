@@ -1,1 +1,2 @@
 fun make_adder x = (fn y = y + x)
+fun enter _ = ( make_adder (2) ) (1)
