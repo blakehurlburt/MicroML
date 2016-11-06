@@ -71,7 +71,16 @@ bindings: bindings SEP ID BIND exp { $$ = $1;  ((RecordNode*)$$)->add(new ValNod
         |  /*Empty*/ {$$ = new RecordNode(); }
         ;
 
+elems: exp SEP elems {RecordNode* r = new RecordNode();
+             r->add(new ValNode(new IdentifierNode("head"), (ExpressionNode*) $1));
+             r->add(new ValNode(new IdentifierNode("tail"), (RecordNode*) $3)); $$ = r;}
+     | exp       {RecordNode* r = new RecordNode();
+                  r->add(new ValNode(new IdentifierNode("head"), (ExpressionNode*) $1));
+                  r->add(new ValNode(new IdentifierNode("tail"), new RecordNode())); $$ = r;}
+     | /*Empty*/ {$$ = new RecordNode(); }
+
 exp: LP exp RP {$$ = $2;}
+  | exp GET ID {$$ = new GetNode((ExpressionNode*) $1, (IdentifierNode*) $3); }
   | NEG exp {$$ = new InvokeNode(new IdentifierNode("_neg_"), (ExpressionNode*) $2);}
   | NOT exp {$$ = new InvokeNode(new IdentifierNode("_not_"), (ExpressionNode*) $2);}
   | exp ADD exp {$$ = new BinOpNode(new IdentifierNode("_add_"), (ExpressionNode*) $1, (ExpressionNode*) $3);}
@@ -92,7 +101,9 @@ exp: LP exp RP {$$ = $2;}
   | REAL {$$ = $1;}
   | BOOL {$$ = $1;}
   | ID {$$ = $1;}
+  | STR {$$ = $1; }
   | RBEG bindings REND {$$ = $2;}
+  | LBEG elems LEND {$$ = $2;}
   ;
 
 nl: NL nl { }
