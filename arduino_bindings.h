@@ -4,15 +4,23 @@
 #include <Arduino.h>
 #include "runtime.h"
 
-void println__(Obj* o) {
+void println__(Obj * o, Environment * env) {
   if(o->type() == "int")
     Serial.println(unwrapInt(o));
 
   else if (o->type() == "real")
     Serial.println(unwrapReal(o));
 
-  else if (o->type() == "record")
-    Serial.println(unwrapString(o));
+  else if (o->type() == "record") {
+    Record* rec = (Record*) o;
+    if (rec->r.empty() || rec->r.count("head") <= 0) return;
+
+    if (rec->get("head").type() == "char")
+      Serial.println(unwrapString(o));
+    else
+      Serial.println(unwrapList(o));
+    }
+  }
 
 }
 
@@ -20,7 +28,7 @@ void pinMode__(Obj * o, Environment* env) {
   if (o->type() != "record")
     _error_("not a record");
 
-  Record* rec = (Record*) o;
+  Rec* rec = (Rec*) o;
   Object* pin = rec->get("pin"),
           val = rec->get("mode");
 
