@@ -1,0 +1,1 @@
+lex lexer.l && yacc -d parser.y && g++ -std=c++11 y.tab.c && (if [ -n "$1" ]; then ./a.out < $1; else ./a.out; fi)
