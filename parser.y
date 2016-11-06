@@ -35,10 +35,15 @@ extern int yylex();
        IF THEN ELSE EQ NE GT GE LT LE BOOL AND OR NOT ADD SUB MUL DIV MOD NEG
        BIND VAL FUN FN RBEG REND LBEG LEND SEP GET ERR
 
+%right BIND
+%left ADD, SUB
+%left MUL, DIV, MOD
+
 %%
 
-state: VAL ID BIND exp {$$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4);}
-    |  FUN ID ID BIND exp {$$ = new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5);}
+
+state: VAL ID BIND exp {blocks.top().push_back((StatementNode*) ($$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)));}
+    |  FUN ID ID BIND exp {blocks.top().push_back((StatementNode*) ($$ = new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)));}
 
 exp:  expn          {$$ = $1;}
     | expb          {$$ = $1;}
@@ -83,6 +88,6 @@ BlockNode* absyn_root;
 int main() {
   blocks.push(std::list<StatementNode*>());
   if (yyparse() == 0) //parsing worked
-    std::cout << absyn_root << std::endl;
+    std::cout << BlockNode(blocks.top()).toString() << std::endl;
   return 0;
 }
