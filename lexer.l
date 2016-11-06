@@ -92,63 +92,61 @@ LEND   "]"
 SEP    ","
 GET    "."
 
-ERR    (.) /* things between two errors may also be erroneous */
-
 %%
 
-{LP}   { ECHO; return LP; }
-{RP}   { ECHO; return RP; }
+{LP}   { return LP; }
+{RP}   { return RP; }
 
-{CBEG} { ECHO; return CBEG; }
-{CEND} { ECHO; return CEND; }
+{CBEG} { return CBEG; }
+{CEND} { return CEND; }
 
-{LET}  { ECHO; printf("lexer sees LET\n"); return LET; }
-{IN}   { ECHO; return IN; }
-{END}  { ECHO; return END; }
+{LET}  { printf("lexer sees LET\n"); return LET; }
+{IN}   { return IN; }
+{END}  { return END; }
 
-{IF}   { ECHO; return IF; }
-{THEN} { ECHO; return THEN; }
-{ELSE} { ECHO; return ELSE; }
+{IF}   { return IF; }
+{THEN} { return THEN; }
+{ELSE} { return ELSE; }
 
-{EQ}   { ECHO; return EQ; }
-{NE}   { ECHO; return NE; }
-{LT}   { ECHO; return LT; }
-{LE}   { ECHO; return LE; }
-{GT}   { ECHO; return GT; }
-{GE}   { ECHO; return GE; }
+{EQ}   { return EQ; }
+{NE}   { return NE; }
+{LT}   { return LT; }
+{LE}   { return LE; }
+{GT}   { return GT; }
+{GE}   { return GE; }
 
-{BOOL} { yylval = new BoolNode(yytext == "true"); ECHO; return BOOL; }
-{AND}  { ECHO; return AND; }
-{OR}   { ECHO; return OR; }
-{NOT}  { ECHO; return NOT; }
+{BOOL} { yylval = new BoolNode(yytext == "true"); return BOOL; }
+{AND}  { return AND; }
+{OR}   { return OR; }
+{NOT}  { return NOT; }
 
-{ADD} { ECHO; return ADD; }
-{SUB} { ECHO; return SUB; }
-{MUL} { ECHO; return MUL; }
-{DIV} { ECHO; return DIV; }
+{ADD} { return ADD; }
+{SUB} { return SUB; }
+{MUL} { return MUL; }
+{DIV} { return DIV; }
 
-{BIND} { ECHO; return BIND; }
-{VAL}  { ECHO; return VAL; }
-{FUN}  { ECHO; return FUN; }
-{FN}   { ECHO; return FN; }
-{UNIT} { ECHO; return UNIT; }
-{CONS} { ECHO; return CONS; }
+{BIND} { return BIND; }
+{VAL}  { return VAL; }
+{FUN}  { return FUN; }
+{FN}   { return FN; }
+{UNIT} { return UNIT; }
+{CONS} { return CONS; }
 
-{RBEG} { ECHO; return RBEG; }
-{REND} { ECHO; return REND; }
-{LBEG} { ECHO; return LBEG; }
-{LEND} { ECHO; return LEND; }
-{SEP}  { ECHO; return SEP; }
-{GET}  { ECHO; return GET; }
+{RBEG} { return RBEG; }
+{REND} { return REND; }
+{LBEG} { return LBEG; }
+{LEND} { return LEND; }
+{SEP}  { return SEP; }
+{GET}  { return GET; }
 
 {CHR}  { if (*yytext == '/') yylval = new CharNode(atoc(yytext));
-         else yylval = new CharNode(*yytext); ECHO; return CHR; }
+         else yylval = new CharNode(*yytext); return CHR; }
 
-{ID}   { yylval = new IdentifierNode(yytext); ECHO; return ID; }
-{REAL} { yylval = new RealNode(atof(yytext)); ECHO; return REAL; }
-{INT}  { yylval = new IntNode(atoi(yytext)); ECHO; return INT; }
+{ID}   { yylval = new IdentifierNode(yytext); return ID; }
+{REAL} { yylval = new RealNode(atof(yytext)); return REAL; }
+{INT}  { yylval = new IntNode(atoi(yytext)); return INT; }
 
-{NL}   { ECHO; return NL; }
+{NL}   { return NL; }
 {WS}   { }
 
 %%

@@ -15,12 +15,22 @@ extern "C"
 
 #include "AST.h"
 
+#include "CPPAST.h"
+#include "CodeGen.h"
+#include "Translate.h"
+
 #define YYSTYPE ASTNode*
 
 #include "lex.yy.c"
 
+int yyerror(std::string s)
+{
+  std::cerr << "syntax error: " << yylval << std::endl;
+  return 0;
+}
 
 std::stack<BlockNode*> blocks;
+
 
 extern int yylex();
 
@@ -34,7 +44,7 @@ extern int yylex();
 
 %token UNIT LP RP NL CHR STR ID REAL INT CBEG CEND CONS
        IF THEN ELSE EQ NE GT GE LT LE BOOL AND OR NOT ADD SUB MUL DIV MOD NEG
-       BIND VAL FUN FN RBEG REND LBEG LEND SEP GET LET IN END ERR
+       BIND VAL FUN FN RBEG REND LBEG LEND SEP GET LET IN END
 
 %left SEP
 %right BIND, IF, THEN, ELSE
@@ -50,8 +60,11 @@ extern int yylex();
 
 %%
 
-state: VAL ID BIND exp {blocks.top()->add(new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)); $$ = $1;}
-    | FUN ID ID BIND exp {blocks.top()->add(new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)); $$ = $1;}
+block: state block { }
+     | state       { }
+
+state: VAL ID BIND exp nl {blocks.top()->add(new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)); $$ = $1;}
+    | FUN ID ID BIND exp nl {blocks.top()->add(new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)); $$ = $1;}
 
 exp: LP exp RP {$$ = $2;}
   | NEG exp {$$ = new InvokeNode(new IdentifierNode("_neg_"), (ExpressionNode*) $2);}
@@ -76,20 +89,17 @@ exp: LP exp RP {$$ = $2;}
   | ID {$$ = $1;}
   ;
 
+nl: NL nl { }
+  | NL { }
+
 %%
-
-int yyerror(std::string s)
-{
-  std::cerr << "syntax error: " << yylval << std::endl;
-  return 0;
-}
-
 
 int main() {
   blocks.push(new BlockNode());
-  if (yyparse() == 0) //parsing worked
-  //  for (StatementNode* s : blocks.top()->statements)
-      std::cout << blocks.top()->toString() << std::endl;
+   if (yyparse() == 0) //parsing worked
+   //  for (StatementNode* s : blocks.top()->statements)
+      // std::cout << blocks.top()->toString() << std::endl;
+      std::cout << generateCode(pgrmTranslate(blocks.top())) << std::endl;
 
  //while(yylex());
   return 0;
