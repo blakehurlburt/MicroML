@@ -2,8 +2,8 @@
 
 extern "C"
 {
-  int yyparse(voID);
-  int yylex(voID);
+  int yyparse(void);
+  int yylex(void);
   int yywrap() { return 1; }
 }
 
@@ -13,14 +13,15 @@ extern "C"
 #include <list>
 
 #include "AST.h"
-#include "lex.yy.c"
 
 #define YYSTYPE ASTNode*
 
-extern int yylex();
+#include "lex.yy.c"
+
 
 std::stack<std::list<StatementNode*>> blocks;
-block.push(std::list<StatementNode*>());
+
+extern int yylex();
 
 /*
       UNIT LP RP CHR STR ID REAL INT BOOL CBEG CEND CONS LET IN END
@@ -34,12 +35,10 @@ block.push(std::list<StatementNode*>());
        IF THEN ELSE EQ NE GT GE LT LE BOOL AND OR NOT ADD SUB MUL DIV MOD NEG
        BIND VAL FUN FN RBEG REND LBEG LEND SEP GET ERR
 
-
-
 %%
 
-state: VAL ID BIND exp {$$ = new ValNode($2, $4));}
-    |  FUN ID ID BIND exp {$$ = new FunDeclNode($2, $3, $5);}
+state: VAL ID BIND exp {$$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4);}
+    |  FUN ID ID BIND exp {$$ = new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5);}
 
 exp:  expn          {$$ = $1;}
     | expb          {$$ = $1;}
@@ -79,9 +78,10 @@ int yyerror(std::string s)
   std::cerr << s << std::endl;
 }
 
-extern A_exp absyn_root;
+BlockNode* absyn_root;
 
 int main() {
+  blocks.push(std::list<StatementNode*>());
   if (yyparse() == 0) //parsing worked
     std::cout << absyn_root << std::endl;
   return 0;

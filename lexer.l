@@ -1,5 +1,27 @@
 %{
     #include <stdio.h>
+    #include <string.h>
+
+    #include "y.tab.h"
+
+    extern YYSTYPE yylval;
+
+    char atoc(const char* str) {
+      switch(str[1]) {
+        case '\"': return '\"';
+        case '\'': return '\'';
+        case '\\': return '\\';
+        case '0': return '\0';
+        case 'a': return '\a';
+        case 'b': return '\b';
+        case 'f': return '\f';
+        case 'n': return '\n';
+        case 'r': return '\r';
+        case 't': return '\t';
+        case 'v': return '\v';
+        default: return 0;
+      }
+    }
 %}
 
 %option noyywrap
@@ -47,18 +69,12 @@ OR     "||"
 NOT    "!"
 
 /* arithmetic operators */
-ADDI   "+"
-ADDR   "+."
-SUBI   "-"
-SUBR   "-."
-MULI   "*"
-MULR   "*."
-DIVI   "/"
-DIVR   "/."
-MODI   "%"
-
-NEGI   "~"
-NEGR   "~."
+ADD   "+"
+SUB   "-"
+MUL   "*"
+DIV   "/"
+MOD   "%"
+NEG   "~"
 
 /* values and functions */
 BIND   "="
@@ -80,67 +96,61 @@ ERR    . /* things between two errors may also be erroneous */
   printf("\nTokenizer running, ^D to exit\n");
 
 
-{CBEG} { printf("CBEG\n"); }
-{CEND} { printf("CEND\n"); }
+{CBEG} { return CBEG; }
+{CEND} { return CEND; }
 
-{LET}  { printf("LET\n"); }
-{IN}   { printf("IN\n"); }
-{END}  { printf("END\n"); }
+{LET}  { return LET; }
+{IN}   { return IN; }
+{END}  { return END; }
 
-{IF}   { printf("IF\n"); }
-{THEN} { printf("THEN\n"); }
-{ELSE} { printf("ELSE\n"); }
+{IF}   { return IF; }
+{THEN} { return THEN; }
+{ELSE} { return ELSE; }
 
-{EQ}   { printf("EQ\n"); }
-{NE}   { printf("NE\n"); }
-{LT}   { printf("LT\n"); }
-{LE}   { printf("LE\n"); }
-{GT}   { printf("GT\n"); }
-{GE}   { printf("GE\n"); }
+{EQ}   { return EQ; }
+{NE}   { return NE; }
+{LT}   { return LT; }
+{LE}   { return LE; }
+{GT}   { return GT; }
+{GE}   { return GE; }
 
-{BOOL} { printf("BOOL{%s}\n", yytext); }
-{AND}  { printf("AND\n"); }
-{OR}   { printf("OR\n"); }
-{NOT}  { printf("NOT\n"); }
+{BOOL} { yylval = new BoolNode(yytext == "true"); return BOOL; }
+{AND}  { return AND; }
+{OR}   { return OR; }
+{NOT}  { return NOT; }
 
-{ADDI} { printf("ADDI\n"); }
-{ADDR} { printf("ADDR\n"); }
-{SUBI} { printf("SUBI\n"); }
-{SUBR} { printf("SUBR\n"); }
-{MULI} { printf("MULI\n"); }
-{MULR} { printf("MULR\n"); }
-{DIVI} { printf("DIVI\n"); }
-{DIVR} { printf("DIVR\n"); }
+{ADD} { return ADD; }
+{SUB} { return SUB; }
+{MUL} { return MUL; }
+{DIV} { return DIV; }
 
-{BIND} { printf("BIND\n"); }
-{VAL}  { printf("VAL\n"); }
-{FUN}  { printf("FUN\n"); }
-{FN}   { printf("FN\n"); }
-{UNIT} { printf("UNIT\n"); }
-{CONS} { printf("CONS\n"); }
+{BIND} { return BIND; }
+{VAL}  { return VAL; }
+{FUN}  { return FUN; }
+{FN}   { return FN; }
+{UNIT} { return UNIT; }
+{CONS} { return CONS; }
 
-{RBEG} { printf("RBEG\n"); }
-{REND} { printf("REND\n"); }
-{LBEG} { printf("LBEG\n"); }
-{LEND} { printf("LEND\n"); }
-{SEP}  { printf("SEP\n"); }
-{GET}  { printf("GET\n"); }
+{RBEG} { return RBEG; }
+{REND} { return REND; }
+{LBEG} { return LBEG; }
+{LEND} { return LEND; }
+{SEP}  { return SEP; }
+{GET}  { return GET; }
 
-{STR}  { printf("STR{%s}\n", yytext); }
-{CHR}  { printf("CHR{%s}\n", yytext); }
+{STR}  { yylval = new StringNode(yytext); return STR; }
+{CHR}  { if (*yytext == '/') yylval = new CharNode(atoc(yytext));
+         else yylval = new CharNode(*yytext); return CHR; }
 
-{ID}   { printf("ID{%s}\n", yytext); }
-{REAL} { printf("REAL{%s}\n", yytext); }
-{INT}  { printf("INT{%s}\n", yytext); }
+{ID}   { yylval = new IdentifierNode(yytext); return ID; }
+{REAL} { yylval = new RealNode(atof(yytext)); return REAL; }
+{INT}  { yylval = new IntNode(atoi(yytext)); return INT; }
 
-{LP}   { printf("LP\n"); }
-{RP}   { printf("RP\n"); }
+{LP}   { return LP; }
+{RP}   { return RP; }
 {WS}   { }
 
 
-%%s
+%%
 
-int main() {
-  yylex();
-  return 0;
-}
+extern int main();
