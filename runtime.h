@@ -4,6 +4,7 @@
 #include <list>
 #include <map>
 #include <stdexcept>
+#include <iostream>
 
 class Environment;
 
@@ -29,7 +30,7 @@ public:
         return r.find(name)->second;
     }
 
-    std::string type() {
+    std::string type() const {
         return "record";
     }
 
@@ -43,7 +44,7 @@ public:
         env = closureEnv;
     }
 
-    std::string type() {
+    std::string type() const {
         return "function";
     }
 
@@ -57,7 +58,7 @@ public:
         value = val;
     }
 
-    std::string type() {
+    std::string type() const {
         return "boolean";
     }
 
@@ -70,7 +71,7 @@ public:
         value = val;
     }
 
-    std::string type() {
+    virtual std::string type() const {
         return "integer";
     }
 
@@ -83,12 +84,26 @@ public:
         value = val;
     }
 
-    std::string type() {
+    std::string type() const {
         return "real";
     }
 
     double value;
 };
+
+bool unwrapBool(const Obj * o) {
+    if(o->type() != "boolean") {
+        throw std::runtime_error("not a boolean");
+    }
+    return ((Bool*)o)->value;
+}
+
+int unwrapInt(const Obj * o) {
+    if(o->type() != "integer") {
+        throw std::runtime_error("not an integer, is a " + o->type());
+    }
+    return ((Int*)o)->value;
+}
 
 const Obj* makeInt(int i) {
     return new Int(i);
@@ -110,6 +125,7 @@ const Obj* makeFun(const Obj * (*func)(const Obj*, Environment*), Environment* c
     return new Fun(func, closureEnv);
 }
 
+
 class Environment {
 public:
     Environment() {
@@ -129,8 +145,7 @@ public:
     }
 
     const Obj* lookup(std::string name) {
-        auto i = envs.begin();
-        while(i != envs.end()) {
+        for(auto i = envs.begin(); i != envs.end(); ++i) {
             if(i->count(name) != 0) {
                 return i->find(name)->second;
             }
@@ -300,19 +315,4 @@ const Obj* _lt_(const Obj* o, Environment* env) {
     throw std::runtime_error("div expression not valid");
     return nullptr;
 }
-
-bool unwrapBool(const Obj * o) {
-    if(o->type() != "boolean") {
-        throw std::runtime_error("not a boolean");
-    }
-    return ((Bool*)o)->value;
-}
-
-bool unwrapInt(const Obj * o) {
-    if(o->type() != "integer") {
-        throw std::runtime_error("not an integer, is a " + o->type());
-    }
-    return ((Int*)o)->value;
-}
-
 #endif

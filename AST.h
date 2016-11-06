@@ -41,8 +41,11 @@ public:
 class BlockNode : public ASTNode {
 public:
 
-    // BlockNode(std::list<StatementNode *> stmnts) : statements(stmnts){
-    // }
+    BlockNode(){
+    }
+
+    BlockNode(std::list<StatementNode *> stmnts) : statements(stmnts){
+    }
 
     void add(StatementNode * s) {
         statements.push_back(s);
@@ -285,13 +288,13 @@ public:
 
     virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
 
-        InvokeNode iNode(operation, new RecordNode({ \
+        RecordNode rnode({ \
             new ValNode(new IdentifierNode("_0"), lhs), \
             new ValNode(new IdentifierNode("_1"), rhs) \
-        }));
+        });
 
-        CPPExpression * ret = iNode.translate(funList);
-        for(ValNode* v : ((RecordNode*)iNode.args)->fields) {
+        CPPExpression * ret = new CPPNativeExpression(operation->id, rnode.translate(funList));
+        for(ValNode* v : rnode.fields) {
             v->val = nullptr;
         }
         return ret;
