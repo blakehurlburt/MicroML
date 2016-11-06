@@ -114,8 +114,8 @@ nl: NL nl { }
 int main() {
   blocks.push(new BlockNode());
  if (yyparse() == 0) //parsing worked
-     for (StatementNode* s : blocks.top()->statements)
-       std::cout << blocks.top()->toString() << std::endl;
+//     for (StatementNode* s : blocks.top()->statements)
+//       std::cout << blocks.top()->toString() << std::endl;
  std::cout << generateCode(pgrmTranslate(blocks.top())) << std::endl;
 
  //while(yylex()) std::cout << yylval->toString() << std::endl;
