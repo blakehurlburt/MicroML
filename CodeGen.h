@@ -15,7 +15,8 @@ std::string generateCode(std::list < CPPFunction* > functions) {
     str += "void setup() {\n";
     str += "\tSerial.begin(9600);\n";
     str += "\twhile(!Serial);\n";
-    str += "\tSerial.println(unwrapInt(_main_(makeRecord({}), new Environment())));\n";
+    str += "\ttopEnv = new Environment();\n";
+    str += "\tSerial.println(unwrapInt(_main_(makeRecord({}, topEnv), topEnv)));\n";
     str += "}\n";
 
     str += "void loop() {\n";

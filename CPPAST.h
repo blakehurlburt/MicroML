@@ -33,7 +33,7 @@ public:
     }
 
     virtual std::string genCode() {
-        return "makeInt(" + std::to_string(value) + ")";
+        return "makeInt(" + std::to_string(value) + ", env)";
     }
 
     int value;
@@ -46,7 +46,7 @@ public:
     }
 
     virtual std::string genCode() {
-        return "makeChar(" + std::to_string(value) + ")";
+        return "makeChar(" + std::to_string(value) + ", env)";
     }
 
     char value;
@@ -59,7 +59,7 @@ public:
     }
 
     virtual std::string genCode() {
-        return "makeBool(" + std::to_string(value) + ")";
+        return "makeBool(" + std::to_string(value) + ", env)";
     }
 
     bool value;
@@ -73,7 +73,7 @@ public:
     }
 
     virtual std::string genCode() {
-        return "makeReal(" + std::to_string(value) + ")";
+        return "makeReal(" + std::to_string(value) + ", env)";
     }
 
     double value;
@@ -93,7 +93,7 @@ public:
         if(!fields.empty()) {
             str = str.substr(0,str.length() - 1);
         }
-        str += "})";
+        str += "}, env)";
 
         return str;
     }
@@ -107,7 +107,7 @@ public:
     }
 
     virtual std::string genCode() {
-        return "makeFun(*" + id + ", new Environment(*env))";
+        return "makeFun(*" + id + ", new Environment(*env), env)";
     }
 
     std::string id;
@@ -237,13 +237,14 @@ public:
     }
 
     virtual std::string genCode() {
-        std::string fun = "const Obj* " + name + "(const Obj* param, Environment *env) {\n";
+        std::string fun = "Obj* " + name + "(Obj* param, Environment *env) {\n";
         fun += "\tenv->push();\n";
         fun += "\tenv->bind(\"" + param + "\", param);\n";
-        fun += "\tconst Obj* ret = nullptr;\n";
+        fun += "\t Obj* ret = nullptr;\n";
         for(CPPStatement* statement : body) {
             fun += "\t" + statement->genCode() + "\n";
         }
+        fun += "\tret->mark();\n";
         fun += "\tenv->pop();\n";
         fun += "\treturn ret;\n";
         fun += "}\n";

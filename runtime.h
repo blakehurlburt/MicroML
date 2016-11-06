@@ -15,59 +15,219 @@ int _write(){
 
 #include <list>
 #include <map>
+#include <vector>
+#include <string>
 #include <Arduino.h>
 
-class Environment;
+class Obj;
+
+std::vector < Obj * > gcList;
+
+const char* toString(int i) {
+    return String(i).c_str();
+}
 
 void _error_(std::string msg) {
     Serial.print("error: ");
     Serial.println(msg.c_str());
+    pinMode(13, OUTPUT);
     while(true) {
-
+        digitalWrite(13, HIGH);
+        delay(500);
+        digitalWrite(13, LOW);
+        delay(500);
     }
 }
 
 class Obj {
 public:
-    virtual std::string type() const {
+    virtual std::string type() {
         return "object";
     }
+
+    virtual ~Obj() {
+    }
+
+    bool gcFlag = false;
+    bool deleted = false;
+
+    virtual void mark() {
+        gcFlag = true;
+    }
+
+    bool sweep() {
+        bool wasCollected = !gcFlag;
+        if(!gcFlag) {
+            delete this;
+            //deleted = true;
+        }
+        gcFlag = false;
+        return wasCollected;
+    }
+};
+
+class Int: public Obj {
+public:
+    Int(int val) {
+        value = val;
+    }
+
+    ~Int(){
+
+    }
+
+    virtual void mark() {
+        gcFlag = true;
+    }
+
+    virtual std::string type() {
+        return "integer";
+    }
+
+    int value;
+};
+
+class Environment;
+Environment* topEnv = nullptr;
+
+class Environment {
+public:
+    Environment() {
+        push();
+    }
+
+    void push() {
+        envs.push_front(std::map < std::string, Obj * > ());
+    }
+
+    void mark() {
+        for(auto i : envs) {
+            for(auto p : i) {
+                p.second->mark();
+            }
+        }
+    }
+
+    void GC() {
+        mark();
+        int freed = 0;
+        for(int i = 0; i < gcList.size(); ++i) {
+            if(gcList[i]->sweep() && gcList.size() > 1) {
+                gcList[i] = gcList[gcList.size() - 1];
+                gcList.pop_back();
+                --i;
+                freed++;
+            }
+        }
+    }
+
+    void pop() {
+        if(!envs.empty()) {
+            envs.pop_front();
+        }
+
+        topEnv->GC();
+    }
+
+    Obj* lookup(std::string name) {
+        for(auto i = envs.begin(); i != envs.end(); ++i) {
+            if(i->count(name) != 0) {
+                return i->find(name)->second;
+            }
+        }
+        _error_("not found: " + name);
+        return nullptr;
+    }
+
+    void bind(std::string name, Obj* val) {
+        if(name == "") {
+            // Serial.print((String("__") + String((int)val)).c_str());
+            // Serial.print(":");
+            // if(val->type() == "integer") {
+            //     Serial.println(((Int*)val)->value);
+            // } else {
+            //     Serial.println(val->type().c_str());
+            // }
+            envs.front()[(String("__") + String((int)val)).c_str()] = val;
+        } else {
+            envs.front()[name] = val;
+            // Serial.print(name.c_str());
+            // Serial.print(":");
+            // if(val->type() == "integer") {
+            //     Serial.println(((Int*)val)->value);
+            // } else {
+            //     Serial.println(val->type().c_str());
+            // }
+        }
+    }
+private:
+    std::list < std::map < std::string, Obj * >> envs;
 };
 
 class Rec: public Obj {
 public:
-    Rec(std::list < std::pair < std::string, const Obj * >> pairs) {
-        for(std::pair < std::string, const Obj * > p : pairs) {
+    Rec(std::list < std::pair < std::string, Obj * >> pairs) {
+        for(std::pair < std::string, Obj * > p : pairs) {
             r.insert(p);
         }
     }
 
-    const Obj* get(std::string name) const {
+    ~Rec(){
+
+    }
+
+    Obj* get(std::string name) {
         if(r.count(name) == 0) {
             _error_("not found");
         }
         return r.find(name)->second;
     }
 
-    std::string type() const {
+    std::string type() {
         return "record";
     }
 
-    std::map < std::string, const Obj * > r;
+    void mark() {
+
+        if(gcFlag) {
+            return;
+        }
+        gcFlag = true;
+
+        for(std::pair < std::string, Obj * > p : r) {
+            p.second->mark();
+        }
+    }
+
+    std::map < std::string, Obj * > r;
 };
 
 class Fun: public Obj {
 public:
-    Fun(const Obj * (*func)(const Obj*, Environment*), Environment * closureEnv) {
+    Fun(Obj * (*func)(Obj*, Environment*), Environment * closureEnv) {
         fun = func;
         env = closureEnv;
     }
 
-    std::string type() const {
+    ~Fun() {
+        //delete env;
+    }
+
+    std::string type() {
         return "function";
     }
 
-    const Obj* (*fun)(const Obj*, Environment*);
+    void mark() {
+
+        if(gcFlag) {
+            return;
+        }
+        gcFlag = true;
+
+        env->mark();
+    }
+
+    Obj* (*fun)(Obj*, Environment*);
     Environment *env;
 };
 
@@ -77,24 +237,15 @@ public:
         value = val;
     }
 
-    std::string type() const {
+    ~Bool(){
+
+    }
+
+    std::string type() {
         return "boolean";
     }
 
     bool value;
-};
-
-class Int: public Obj {
-public:
-    Int(int val) {
-        value = val;
-    }
-
-    virtual std::string type() const {
-        return "integer";
-    }
-
-    int value;
 };
 
 class Real: public Obj {
@@ -103,7 +254,11 @@ public:
         value = val;
     }
 
-    std::string type() const {
+    ~Real(){
+
+    }
+
+    std::string type() {
         return "real";
     }
 
@@ -116,90 +271,75 @@ public:
         value = val;
     }
 
-    std::string type() const {
+    ~Char(){
+
+    }
+
+    std::string type() {
         return "char";
     }
 
     char value;
 };
 
-bool unwrapBool(const Obj * o) {
+bool unwrapBool(Obj * o) {
     if(o->type() != "boolean") {
         _error_("not a boolean");
     }
     return ((Bool*)o)->value;
 }
 
-int unwrapInt(const Obj * o) {
+int unwrapInt(Obj * o) {
     if(o->type() != "integer") {
         _error_("not an integer, is a " + o->type());
     }
     return ((Int*)o)->value;
 }
 
-const Obj* makeInt(int i) {
-    return new Int(i);
+Obj* makeInt(int i, Environment* env) {
+    Obj * o = new Int(i);
+    gcList.push_back(o);
+    env->bind("",o);
+    return o;
 }
 
-const Obj* makeReal(double d) {
-    return new Real(d);
+Obj* makeReal(double d, Environment* env) {
+    Obj* o = new Real(d);
+    gcList.push_back(o);
+    env->bind("",o);
+    return o;
 }
 
-const Obj* makeBool(bool b) {
-    return new Bool(b);
+Obj* makeBool(bool b, Environment* env) {
+    Obj* o = new Bool(b);
+    gcList.push_back(o);
+    env->bind("",o);
+    return o;
 }
 
-const Obj* makeChar(char c) {
-    return new Char(c);
+Obj* makeChar(char c, Environment* env) {
+    Obj* o = new Char(c);
+    gcList.push_back(o);
+    env->bind("",o);
+    return o;
 }
 
-
-const Obj* makeRecord(std::list < std::pair < std::string, const Obj * >> pairs) {
-    return new Rec(pairs);
+Obj* makeRecord(std::list < std::pair < std::string, Obj * >> pairs, Environment* env) {
+    Obj* o = new Rec(pairs);
+    gcList.push_back(o);
+    env->bind("",o);
+    return o;
 }
 
-const Obj* makeFun(const Obj * (*func)(const Obj*, Environment*), Environment* closureEnv) {
-    return new Fun(func, closureEnv);
+Obj* makeFun(Obj * (*func)(Obj*, Environment*), Environment* closureEnv, Environment* env) {
+    Obj* o = new Fun(func, closureEnv);
+    gcList.push_back(o);
+    env->bind("",o);
+    return o;
 }
 
-
-class Environment {
-public:
-    Environment() {
-        push();
-    }
-
-    Environment(const Environment &that) {
-        envs = that.envs;
-    }
-
-    void push() {
-        envs.push_front(std::map < std::string, const Obj * > ());
-    }
-
-    void pop() {
-        envs.pop_front();
-    }
-
-    const Obj* lookup(std::string name) {
-        for(auto i = envs.begin(); i != envs.end(); ++i) {
-            if(i->count(name) != 0) {
-                return i->find(name)->second;
-            }
-        }
-        _error_("not found: " + name);
-        return nullptr;
-    }
-
-    void bind(std::string name, const Obj* val) {
-        envs.front()[name] = val;
-    }
-private:
-    std::list < std::map < std::string, const Obj * >> envs;
-};
-
-const Obj* invoke(std::string id, const Obj* arg, Environment* env) {
-    const Obj* o = env->lookup(id);
+Obj* invoke(std::string id, Obj* arg, Environment* env) {
+    Obj* o = env->lookup(id);
     if(o->type() != "function") {
         _error_("not a function");
     }
@@ -209,12 +349,13 @@ const Obj* invoke(std::string id, const Obj* arg, Environment* env) {
     Environment * closureEnv = f->env;
     closureEnv->push();
     closureEnv->bind(id, env->lookup(id));
-    const Obj * ret = (*(f->fun))(arg,closureEnv);
+    Obj * ret = (*(f->fun))(arg,closureEnv);
+    ret->mark();
     closureEnv->pop();
     return ret;
 }
 
-const Obj* _get_(const Obj* o, std::string field, Environment* env) {
+Obj* _get_(Obj* o, std::string field, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
         return nullptr;
@@ -232,231 +373,231 @@ const Obj* _get_(const Obj* o, std::string field, Environment* env) {
 
 }
 
-const Obj* _add_(const Obj* o, Environment* env) {
+Obj* _add_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
 
     if(r0->type() == "integer" && r1->type() == "integer") {
-        return makeInt(((const Int*)r0)->value + ((const Int*)r1)->value);
+        return makeInt(((Int*)r0)->value + ((Int*)r1)->value, env);
     }
 
     if(r0->type() == "integer" && r1->type() == "real") {
-        return makeReal(((const Int*)r0)->value + ((const Real*) r1)->value);
+        return makeReal(((Int*)r0)->value + ((Real*) r1)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "integer") {
-        return makeReal(((Real*) r0)->value + ((const Int*)r0)->value);
+        return makeReal(((Real*) r0)->value + ((Int*)r0)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "real") {
-        return makeReal(((const Real*) r0)->value + ((const Real*) r1)->value);
+        return makeReal(((Real*) r0)->value + ((Real*) r1)->value, env);
     }
 
     _error_("addition expression not valid");
     return nullptr;
 }
 
-const Obj* _sub_(const Obj* o, Environment* env) {
+Obj* _sub_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
 
     if(r0->type() == "integer" && r1->type() == "integer") {
-        return makeInt(((const Int*)r0)->value - ((const Int*)r1)->value);
+        return makeInt(((Int*)r0)->value - ((Int*)r1)->value, env);
     }
 
     if(r0->type() == "integer" && r1->type() == "real") {
-        return makeReal(((const Int*)r0)->value - ((const Real*) r1)->value);
+        return makeReal(((Int*)r0)->value - ((Real*) r1)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "integer") {
-        return makeReal(((Real*) r0)->value - ((const Int*)r0)->value);
+        return makeReal(((Real*) r0)->value - ((Int*)r0)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "real") {
-        return makeReal(((const Real*) r0)->value - ((const Real*) r1)->value);
+        return makeReal(((Real*) r0)->value - ((Real*) r1)->value, env);
     }
 
     _error_("sub expression not valid");
     return nullptr;
 }
 
-const Obj* _mul_(const Obj* o, Environment* env) {
+Obj* _mul_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
 
     if(r0->type() == "integer" && r1->type() == "integer") {
-        return makeInt(((const Int*)r0)->value * ((const Int*)r1)->value);
+        return makeInt(((Int*)r0)->value * ((Int*)r1)->value, env);
     }
 
     if(r0->type() == "integer" && r1->type() == "real") {
-        return makeReal(((const Int*)r0)->value * ((const Real*) r1)->value);
+        return makeReal(((Int*)r0)->value * ((Real*) r1)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "integer") {
-        return makeReal(((Real*) r0)->value * ((const Int*)r0)->value);
+        return makeReal(((Real*) r0)->value * ((Int*)r0)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "real") {
-        return makeReal(((const Real*) r0)->value * ((const Real*) r1)->value);
+        return makeReal(((Real*) r0)->value * ((Real*) r1)->value, env);
     }
 
     _error_("mul expression not valid");
     return nullptr;
 }
 
-const Obj* _div_(const Obj* o, Environment* env) {
+Obj* _div_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
 
     if(r0->type() == "integer" && r1->type() == "integer") {
-        return makeInt(((const Int*)r0)->value / ((const Int*)r1)->value);
+        return makeInt(((Int*)r0)->value / ((Int*)r1)->value, env);
     }
 
     if(r0->type() == "integer" && r1->type() == "real") {
-        return makeReal(((const Int*)r0)->value / ((const Real*) r1)->value);
+        return makeReal(((Int*)r0)->value / ((Real*) r1)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "integer") {
-        return makeReal(((Real*) r0)->value / ((const Int*)r0)->value);
+        return makeReal(((Real*) r0)->value / ((Int*)r0)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "real") {
-        return makeReal(((const Real*) r0)->value / ((const Real*) r1)->value);
+        return makeReal(((Real*) r0)->value / ((Real*) r1)->value, env);
     }
 
     _error_("div expression not valid");
     return nullptr;
 }
 
-const Obj* _lt_(const Obj* o, Environment* env) {
+Obj* _lt_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
 
     if(r0->type() == "integer" && r1->type() == "integer") {
-        return makeBool(((const Int*)r0)->value < ((const Int*)r1)->value);
+        return makeBool(((Int*)r0)->value < ((Int*)r1)->value, env);
     }
 
     if(r0->type() == "integer" && r1->type() == "real") {
-        return makeBool(((const Int*)r0)->value < ((const Real*) r1)->value);
+        return makeBool(((Int*)r0)->value < ((Real*) r1)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "integer") {
-        return makeBool(((Real*) r0)->value < ((const Int*)r0)->value);
+        return makeBool(((Real*) r0)->value < ((Int*)r0)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "real") {
-        return makeBool(((const Real*) r0)->value < ((const Real*) r1)->value);
+        return makeBool(((Real*) r0)->value < ((Real*) r1)->value, env);
     }
 
     _error_("div expression not valid");
     return nullptr;
 }
 
-const Obj* _gt_(const Obj* o, Environment* env) {
+Obj* _gt_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
 
     if(r0->type() == "integer" && r1->type() == "integer") {
-        return makeBool(((const Int*)r0)->value > ((const Int*)r1)->value);
+        return makeBool(((Int*)r0)->value > ((Int*)r1)->value, env);
     }
 
     if(r0->type() == "integer" && r1->type() == "real") {
-        return makeBool(((const Int*)r0)->value > ((const Real*) r1)->value);
+        return makeBool(((Int*)r0)->value > ((Real*) r1)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "integer") {
-        return makeBool(((Real*) r0)->value > ((const Int*)r0)->value);
+        return makeBool(((Real*) r0)->value > ((Int*)r0)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "real") {
-        return makeBool(((const Real*) r0)->value > ((const Real*) r1)->value);
+        return makeBool(((Real*) r0)->value > ((Real*) r1)->value, env);
     }
 
     _error_("div expression not valid");
     return nullptr;
 }
 
-const Obj* _ge_(const Obj* o, Environment* env) {
+Obj* _ge_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
 
     if(r0->type() == "integer" && r1->type() == "integer") {
-        return makeBool(((const Int*)r0)->value >= ((const Int*)r1)->value);
+        return makeBool(((Int*)r0)->value >= ((Int*)r1)->value, env);
     }
 
     if(r0->type() == "integer" && r1->type() == "real") {
-        return makeBool(((const Int*)r0)->value >= ((const Real*) r1)->value);
+        return makeBool(((Int*)r0)->value >= ((Real*) r1)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "integer") {
-        return makeBool(((Real*) r0)->value >= ((const Int*)r0)->value);
+        return makeBool(((Real*) r0)->value >= ((Int*)r0)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "real") {
-        return makeBool(((const Real*) r0)->value >= ((const Real*) r1)->value);
+        return makeBool(((Real*) r0)->value >= ((Real*) r1)->value, env);
     }
 
     _error_("div expression not valid");
     return nullptr;
 }
 
-const Obj* _le_(const Obj* o, Environment* env) {
+Obj* _le_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
 
     if(r0->type() == "integer" && r1->type() == "integer") {
-        return makeBool(((const Int*)r0)->value <= ((const Int*)r1)->value);
+        return makeBool(((Int*)r0)->value <= ((Int*)r1)->value, env);
     }
 
     if(r0->type() == "integer" && r1->type() == "real") {
-        return makeBool(((const Int*)r0)->value <= ((const Real*) r1)->value);
+        return makeBool(((Int*)r0)->value <= ((Real*) r1)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "integer") {
-        return makeBool(((Real*) r0)->value <= ((const Int*)r0)->value);
+        return makeBool(((Real*) r0)->value <= ((Int*)r0)->value, env);
     }
 
     if(r0->type() == "real" && r1->type() == "real") {
-        return makeBool(((const Real*) r0)->value <= ((const Real*) r1)->value);
+        return makeBool(((Real*) r0)->value <= ((Real*) r1)->value, env);
     }
 
     _error_("div expression not valid");
     return nullptr;
 }
 
-bool ObjEq(const Obj* o0, const Obj* o1) {
+bool ObjEq(Obj* o0, Obj* o1, Environment* env) {
     if(o0->type() != o1->type()) {
         return false;
     }
@@ -470,7 +611,7 @@ bool ObjEq(const Obj* o0, const Obj* o1) {
             if(entry == r1.end()) {
                 return false;
             }
-            if(!ObjEq(entry->second, e.second)) {
+            if(!ObjEq(entry->second, e.second, env)) {
                 return false;
             }
         }
@@ -479,67 +620,67 @@ bool ObjEq(const Obj* o0, const Obj* o1) {
 
     if(o1->type() != "record") {
         if(o0->type() == "integer" && o1->type() == "integer") {
-            return makeBool(((const Int*)o0)->value == ((const Int*)o1)->value);
+            return ((Int*)o0)->value == ((Int*)o1)->value;
         }
     }
 
     if(o0->type() == "integer" && o1->type() == "real") {
-        return makeBool(((const Int*)o0)->value == ((const Real*)o1)->value);
+        return ((Int*)o0)->value == ((Real*)o1)->value;
     }
 
     if(o0->type() == "real" && o1->type() == "integer") {
-        return makeBool(((Real*) o0)->value == ((const Int*)o0)->value);
+        return ((Real*) o0)->value == ((Int*)o0)->value;
     }
 
     if(o0->type() == "real" && o1->type() == "real") {
-        return makeBool(((const Real*) o0)->value == ((const Real*)o1)->value);
+        return ((Real*) o0)->value == ((Real*)o1)->value;
     }
 
     if(o0->type() == "boolean" && o1->type() == "boolean") {
-        return makeBool(((const Bool*) o0)->value == ((const Bool*)o1)->value);
+        return ((Bool*) o0)->value == ((Bool*)o1)->value;
     }
 
     if(o0->type() == "char" && o1->type() == "char") {
-        return makeBool(((const Char*) o0)->value == ((const Char*)o1)->value);
+        return ((Char*) o0)->value == ((Char*)o1)->value;
     }
 
     return false;
 }
 
-const Obj* _eq_(const Obj* o, Environment* env) {
+Obj* _eq_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
-    return makeBool(ObjEq(r0, r1));
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
+    return makeBool(ObjEq(r0, r1, env), env);
 }
 
-const Obj* _ne_(const Obj* o, Environment* env) {
+Obj* _ne_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
-    return makeBool(!ObjEq(r0, r1));
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
+    return makeBool(!ObjEq(r0, r1, env), env);
 }
 
-const Obj* _or_(const Obj* o, Environment* env) {
+Obj* _or_(Obj* o, Environment* env) {
     if(o->type() != "record") {
         _error_("not a record");
     }
 
-    const Obj* r0 = ((Rec*)o)->get("_0");
-    const Obj* r1 = ((Rec*)o)->get("_1");
+    Obj* r0 = ((Rec*)o)->get("_0");
+    Obj* r1 = ((Rec*)o)->get("_1");
 
     if(r0->type() == "integer" && r1->type() == "integer") {
-        return makeBool(((const Bool*)r0)->value || ((const Bool*)r1)->value);
+        return makeBool(((Bool*)r0)->value || ((Bool*)r1)->value, env);
     }
 
     if(r0->type() == "integer" && r1->type() == "real") {
-        return makeBool(((const Bool*)r0)->value || ((const Bool*) r1)->value);
+        return makeBool(((Bool*)r0)->value || ((Bool*) r1)->value, env);
     }
 
     _error_("div expression not valid");
