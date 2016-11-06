@@ -6,138 +6,169 @@
 #include <stdexcept>
 
 class Environment;
-class Obj;
-
-Obj _add_(Obj o, Environment* env) {
-  if (o.type() != "record") throw std::runtime_error("not a record");
-  Obj& r0 = ((Rec)o).get("_0");
-  Obj& r1 = ((Rec)o).get("_1");
-
-  if (r0.type() != "integer" && r0.type() != "real" || r1.type() != "integer" && r1.type() != "real")
-     throw std::runtime_error("addition expression not valid");
-
-  return r0.value() + r1.value();
-}
-
-
-
-
-
-
-
-
-
-
 
 class Obj {
-  virtual std::string type() {
-    return "object";
-  }
-};
-
-class Rec : public Obj {
 public:
-  Rec(std::list<std::pair<std::string, Obj> > pairs) {
-    for(std::pair<std::string, Obj> p : pairs)
-      r.insert(p);
-  }
-
-  Obj get(std::string name) {
-    if (r.count(name) == 0) throw std::runtime_error("not found");
-    return r.find(name)->second;
-  }
-
-  std::string type() {
-    return "record";
-  }
-
-  std::map<std::string, Obj> r;
+    virtual std::string type() const {
+        return "object";
+    }
 };
 
-class Fun : public Obj {
+class Rec: public Obj {
 public:
-  Fun(Obj (*func)(Obj, Environment*)) {
-    fun = func;
-  }
+    Rec(std::list < std::pair < std::string, const Obj * >> pairs) {
+        for(std::pair < std::string, const Obj * > p : pairs) {
+            r.insert(p);
+        }
+    }
 
-  std::string type() {
-    return "function";
-  }
+    const Obj* get(std::string name) const {
+        if(r.count(name) == 0) {
+            throw std::runtime_error("not found");
+        }
+        return r.find(name)->second;
+    }
 
-  Obj (*fun)(Obj, Environment*);
+    std::string type() {
+        return "record";
+    }
+
+    std::map < std::string, const Obj * > r;
 };
 
-class Bool : public Obj {
+class Fun: public Obj {
 public:
-  Bool(bool val) {
-    value = val;
-  }
+    Fun(Obj * (*func)(Obj*, Environment*)) {
+        fun = func;
+    }
 
-  std::string type() {
-    return "boolean";
-  }
+    std::string type() {
+        return "function";
+    }
 
-  bool value;
+    Obj* (*fun)(Obj*, Environment*);
 };
 
-class Int : public Obj {
+class Bool: public Obj {
 public:
-  Int(int val) {
-    value = val;
-  }
+    Bool(bool val) {
+        value = val;
+    }
 
-  std::string type() {
-    return "integer";
-  }
+    std::string type() {
+        return "boolean";
+    }
 
-  int value;
+    bool value;
 };
 
-class Real : public Obj {
+class Int: public Obj {
 public:
-  Real(double val) {
-    value = val;
-  }
+    Int(int val) {
+        value = val;
+    }
 
-  std::string type() {
-    return "real";
-  }
+    std::string type() {
+        return "integer";
+    }
 
-  double value;
+    int value;
 };
+
+class Real: public Obj {
+public:
+    Real(double val) {
+        value = val;
+    }
+
+    std::string type() {
+        return "real";
+    }
+
+    double value;
+};
+
+const Obj* makeInt(int i) {
+    return new Int(i);
+}
+
+const Obj* makeReal(double d) {
+    return new Real(d);
+}
+
+const Obj* makeBool(bool b) {
+    return new Bool(b);
+}
+
+const Obj* makeRecord(std::list < std::pair < std::string, const Obj * >> pairs) {
+    return new Rec(pairs);
+}
+
+const Obj* makeFun(Obj * (*func)(Obj*, Environment*)) {
+    return new Fun(func);
+}
 
 class Environment {
 public:
-  Environment() {
-    push();
-  }
-
-  Environment(const Environment& that) {
-    envs = that.envs;
-  }
-
-  void push() {
-    envs.push_front(std::map<std::string, Obj>());
-  }
-
-  void pop() {
-    envs.pop_front();
-  }
-
-  Obj lookup(std::string name) {
-    auto i = envs.begin();
-    while(i != envs.end()) {
-      if (i->count(name) != 0)
-       return i->find(name)->second;
+    Environment() {
+        push();
     }
-    throw std::runtime_error("not found");
-  }
 
-  void bind(std::string name, Obj val) {
-    envs.front()[name] = val;
-  }
+    Environment(const Environment &that) {
+        envs = that.envs;
+    }
+
+    void push() {
+        envs.push_front(std::map < std::string, const Obj * > ());
+    }
+
+    void pop() {
+        envs.pop_front();
+    }
+
+    const Obj* lookup(std::string name) {
+        auto i = envs.begin();
+        while(i != envs.end()) {
+            if(i->count(name) != 0) {
+                return i->find(name)->second;
+            }
+        }
+        throw std::runtime_error("not found");
+    }
+
+    void bind(std::string name, const Obj* val) {
+        envs.front()[name] = val;
+    }
 private:
-  std::list<std::map<std::string, Obj> > envs;
+    std::list < std::map < std::string, const Obj * >> envs;
 };
+
+const Obj* _add_(const Obj* o, Environment* env) {
+    if(o->type() != "record") {
+        throw std::runtime_error("not a record");
+    }
+
+    const Obj* r0 = ((Rec*)o)->get("_0");
+    const Obj* r1 = ((Rec*)o)->get("_1");
+
+    if(r0->type() == "integer" && r1->type() == "integer") {
+        return makeInt(((const Int*)r0)->value);
+    }
+
+    if(r0->type() == "integer" && r1->type() == "real") {
+        return makeReal(((const Int*)r0)->value + ((const Real*) r1)->value);
+    }
+
+    if(r0->type() == "real" && r1->type() == "integer") {
+        return makeReal(((Real*) r0)->value + ((const Int*)r0)->value);
+    }
+
+    if(r0->type() == "real" && r1->type() == "real") {
+        return makeReal(((const Real*) r0)->value + ((const Real*) r1)->value);
+    }
+
+    throw std::runtime_error("addition expression not valid");
+    return nullptr;
+}
 
 #endif

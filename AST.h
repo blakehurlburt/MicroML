@@ -1,5 +1,7 @@
 #include <string>
 #include <list>
+#include <iostream>
+#include "CPPAST.h"
 
 class ASTNode {
 public:
@@ -8,30 +10,38 @@ public:
     }
 };
 
-class StatementNode: public ASTNode {
-public:
-  std::string toString() {
-    return "{StatementNode}";
-  };
-
-  virtual ~StatementNode() {
-  }
-};
-
-class ExpressionNode: public ASTNode {
+class StatementNode : public ASTNode {
 public:
     std::string toString() {
-      return "{ExpressionNode}";
+        return "{StatementNode}";
     };
+
+    virtual ~StatementNode() {
+    }
+
+    virtual CPPStatement* translate(std::list<CPPFunction*> & funList) {
+        return nullptr;
+    }
+};
+
+class ExpressionNode : public ASTNode {
+public:
+    virtual std::string toString() {
+        return "{ExpressionNode}";
+    };
+
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+        return nullptr;
+    }
 
     ~ExpressionNode() {
     }
 };
 
-class BlockNode: public ASTNode {
+class BlockNode : public ASTNode {
 public:
 
-    BlockNode(std::list < StatementNode* > stmnts) : statements(stmnts){
+    BlockNode(std::list<StatementNode *> stmnts) : statements(stmnts){
     }
 
     std::string toString() {
@@ -44,67 +54,15 @@ public:
     }
 
     ~BlockNode() {
-      for(StatementNode * s : statements) {
-          delete s;
-      }
+        for(StatementNode * s : statements) {
+            delete s;
+        }
     }
 
-    std::list < StatementNode* > statements;
+    std::list<StatementNode *> statements;
 };
 
-class IntNode: public ExpressionNode {
-public:
-    IntNode(int val) {
-        value = val;
-    }
-
-    std::string toString() {
-        return "{IntNode: " + std::to_string(value) + "}";
-    }
-
-    int value;
-};
-
-class CharNode: public ExpressionNode {
-public:
-    CharNode(char val) {
-        value = val;
-    }
-
-    std::string toString() {
-        return "{IntNode: " + std::to_string(value) + "}";
-    }
-
-    char value;
-};
-
-class RealNode: public ExpressionNode {
-public:
-    RealNode(double val) {
-        value = val;
-    }
-
-    std::string toString() {
-        return "{RealNode: " + std::to_string(value) + "}";
-    }
-
-    double value;
-};
-
-class BoolNode: public ExpressionNode {
-public:
-    BoolNode(bool val) {
-        value = val;
-    }
-
-    std::string toString() {
-        return "{BoolNode: }" + std::to_string(value) + "}";
-    }
-
-    bool value;
-};
-
-class IdentifierNode: public ExpressionNode {
+class IdentifierNode : public ExpressionNode {
 public:
     IdentifierNode(std::string val) {
         id = val;
@@ -114,10 +72,199 @@ public:
         return "{IdentifierNode: " + id + "}";
     }
 
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+        return new CPPLookupExpression(id);
+    }
+
     std::string id;
 };
 
-class BinOpNode: public ExpressionNode {
+class IntNode : public ExpressionNode {
+public:
+    IntNode(int val) {
+        value = val;
+    }
+
+    std::string toString() {
+        return "{IntNode: " + std::to_string(value) + "}";
+    }
+
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+        return new CPPIntExpression(value);
+    }
+
+    int value;
+};
+
+class CharNode : public ExpressionNode {
+public:
+    CharNode(char val) {
+        value = val;
+    }
+
+    std::string toString() {
+        return "{CharNode: " + std::to_string(value) + "}";
+    }
+
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+        return new CPPCharExpression(value);
+    }
+
+    char value;
+};
+
+class RealNode : public ExpressionNode {
+public:
+    RealNode(double val) {
+        value = val;
+    }
+
+    std::string toString() {
+        return "{RealNode: " + std::to_string(value) + "}";
+    }
+
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+        return new CPPRealExpression(value);
+    }
+
+    double value;
+};
+
+class BoolNode : public ExpressionNode {
+public:
+    BoolNode(bool val) {
+        value = val;
+    }
+
+    std::string toString() {
+        return "{BoolNode: }" + std::to_string(value) + "}";
+    }
+
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+        return new CPPBoolExpression(value);
+    }
+
+    bool value;
+};
+
+class ValNode : public StatementNode {
+public:
+    ValNode(IdentifierNode * idtr, ExpressionNode * expr) : id(idtr), val(expr) {
+
+    }
+
+    std::string toString() {
+        return "{ValNode: " + id->toString() + " = " + val->toString() +  "}";
+    }
+
+    virtual CPPStatement* translate(std::list<CPPFunction*> & funList) {
+        return new CPPBinding(id->id, val->translate(funList));
+    }
+
+    ~ValNode() {
+        delete id;
+        delete val;
+    }
+
+    IdentifierNode * id;
+    ExpressionNode * val;
+};
+
+class RecordNode : public ExpressionNode {
+public:
+    RecordNode(std::list<ValNode*>  val) : fields(val) {
+    }
+
+    std::string toString() {
+        std::string str = "{RecordNode: ";
+        for(ValNode* v : fields) {
+            str += v->id->toString() + "=" + v->val->toString() + " ";
+        }
+        str += "}";
+        return str;
+    }
+
+    ~RecordNode() {
+        for(ValNode* v : fields) {
+            delete v;
+        }
+    }
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+
+        std::list<std::pair<std::string, CPPExpression *> > l;
+
+        for(ValNode* v : fields) {
+            std::cout << v->id->id << ":" << v->val->toString() << std::endl;
+            l.push_back(std::make_pair(v->id->id, v->val->translate(funList)));
+        }
+
+        return new CPPRecordExpression(l);
+    }
+
+    std::list<ValNode*> fields;
+};
+
+CPPExpression* buildList(std::list<CharNode *>::const_iterator itr, std::list<CharNode *>::const_iterator end, std::list<CPPFunction*> & funList) {
+
+    if(itr == end) {
+        return new CPPRecordExpression({});
+    }
+
+    return new CPPRecordExpression({
+        std::make_pair("head", (*itr)->translate(funList)),
+        std::make_pair("tail",buildList(++itr, end, funList))
+    });
+
+}
+
+class StringNode : public ExpressionNode {
+public:
+    StringNode(std::string val) {
+        value = val;
+    }
+
+    std::string toString() {
+        return "{StringNode: \"" + value + "\"}";
+    }
+
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+
+        std::list<CharNode *> charList;
+
+        for(char c : value) {
+            charList.push_back(new CharNode(c));
+        }
+
+        return buildList(charList.begin(), charList.end(), funList);
+
+    }
+    std::string value;
+};
+
+class InvokeNode : public ExpressionNode {
+public:
+    InvokeNode(IdentifierNode * id, ExpressionNode * expr) : fun(id), args(expr) {
+
+    }
+
+    std::string toString() {
+        return "{InvokeNode: " + fun->toString() + " " + args->toString() + "}";
+    }
+
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+        return new CPPInvokeExpression(fun->id, args->translate(funList));
+    }
+
+    ~InvokeNode(){
+        delete fun;
+        delete args;
+    }
+
+    IdentifierNode * fun;
+    ExpressionNode * args;
+};
+
+class BinOpNode : public ExpressionNode {
 public:
     BinOpNode(IdentifierNode * op, ExpressionNode * left, ExpressionNode * right)
         : operation(op), lhs(left), rhs(right) {
@@ -128,9 +275,23 @@ public:
     }
 
     ~BinOpNode() {
-      delete operation;
-      delete lhs;
-      delete rhs;
+        delete operation;
+        delete lhs;
+        delete rhs;
+    }
+
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+
+        InvokeNode iNode(operation, new RecordNode({ \
+            new ValNode(new IdentifierNode("_0"), lhs), \
+            new ValNode(new IdentifierNode("_1"), rhs) \
+        }));
+
+        CPPExpression * ret = iNode.translate(funList);
+        for(ValNode* v : ((RecordNode*)iNode.args)->fields) {
+            v->val = nullptr;
+        }
+        return ret;
     }
 
     IdentifierNode * operation;
@@ -139,26 +300,7 @@ public:
 
 };
 
-class InvokeNode: public ExpressionNode {
-public:
-    InvokeNode(IdentifierNode * id, ExpressionNode * expr) : fun(id), args(expr) {
-
-    }
-
-    std::string toString() {
-        return "{InvokeNode: " + fun->toString() + " " + args->toString() + "}";
-    }
-
-    ~InvokeNode(){
-      delete fun;
-      delete args;
-    }
-
-    IdentifierNode * fun;
-    ExpressionNode * args;
-};
-
-class IfNode: public ExpressionNode {
+class IfNode : public ExpressionNode {
 public:
     IfNode(ExpressionNode * cond, ExpressionNode * left, ExpressionNode * right)
         : condition(cond), ifthen(left), ifelse(right) {
@@ -168,10 +310,14 @@ public:
         return "{IfNode: " + condition->toString() + "?" + ifthen->toString()  + ":" + ifelse->toString() + "}";
     }
 
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+        return new CPPIfExpression(condition->translate(funList), ifthen->translate(funList), ifelse->translate(funList));
+    }
+
     ~IfNode(){
-      delete condition;
-      delete ifthen;
-      delete ifelse;
+        delete condition;
+        delete ifthen;
+        delete ifelse;
     }
 
     ExpressionNode * condition;
@@ -179,20 +325,37 @@ public:
     ExpressionNode * ifelse;
 };
 
-class FunDeclNode: public StatementNode {
+CPPFunction* buildFunction(std::string name, std::string param, std::list<StatementNode *> body,
+                           ExpressionNode* ret, std::list<CPPFunction*> & funList){
+
+    std::list<CPPStatement *> statements;
+    for(StatementNode * s : body) {
+        statements.push_back(s->translate(funList));
+    }
+    statements.push_back(new CPPReturn(ret->translate(funList)));
+    return new CPPFunction(name, param, statements);
+
+}
+
+class FunDeclNode : public StatementNode {
 public:
     FunDeclNode(IdentifierNode * id, IdentifierNode * p, ExpressionNode * expr)
-      : fun(id), param(p), body(expr) {
+        : fun(id), param(p), body(expr) {
     }
 
     std::string toString() {
         return "{FunDeclNode: " + fun->toString() + " " + param->toString() + " = " + body->toString() +  "}";
     }
 
+    virtual CPPStatement* translate(std::list<CPPFunction*> & funList) {
+        funList.push_front(buildFunction(fun->id, param->id, std::list<StatementNode *>(), body, funList));
+        return new CPPBinding(fun->id, new CPPFuncExpression(fun->id));
+    }
+
     ~FunDeclNode() {
-      delete fun;
-      delete param;
-      delete body;
+        delete fun;
+        delete param;
+        delete body;
     }
 
     IdentifierNode * fun;
@@ -200,26 +363,7 @@ public:
     ExpressionNode * body;
 };
 
-class ValNode: public StatementNode {
-public:
-    ValNode(IdentifierNode * idtr, ExpressionNode * expr) : id(idtr), val(expr) {
-
-    }
-
-    std::string toString() {
-        return "{ValNode: " + id->toString() + " = " + val->toString() +  "}";
-    }
-
-    ~ValNode() {
-      delete id;
-      delete val;
-    }
-
-    IdentifierNode * id;
-    ExpressionNode * val;
-};
-
-class LambdaNode: public ExpressionNode {
+class LambdaNode : public ExpressionNode {
 public:
     LambdaNode(IdentifierNode * p, ExpressionNode * expr) : param(p), body(expr) {
 
@@ -229,9 +373,14 @@ public:
         return "{LambdaNode: " + param->toString() + " => " + body->toString() +  "}";
     }
 
+    virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
+        funList.push_front(buildFunction("lambda_" + std::to_string(funList.size()), param->id, std::list<StatementNode *>(), body, funList));
+        return new CPPFuncExpression("lambda_" + std::to_string(funList.size() - 1));
+    }
+
     ~LambdaNode() {
-      delete param;
-      delete body;
+        delete param;
+        delete body;
     }
 
     IdentifierNode * param;
@@ -239,7 +388,7 @@ public:
 };
 
 
-class LetNode: public ExpressionNode {
+class LetNode : public ExpressionNode {
 public:
     LetNode(BlockNode * decls, ExpressionNode * expr) : let(decls), in(expr) {
 
@@ -250,8 +399,8 @@ public:
     }
 
     ~LetNode() {
-      delete let;
-      delete in;
+        delete let;
+        delete in;
     }
 
     BlockNode * let;
