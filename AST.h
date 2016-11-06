@@ -179,7 +179,15 @@ public:
 
 class RecordNode : public ExpressionNode {
 public:
+
+    RecordNode() {
+    }
+
     RecordNode(std::list<ValNode*>  val) : fields(val) {
+    }
+
+    void add(ValNode* v){
+        fields.push_back(v);
     }
 
     std::string toString() {
