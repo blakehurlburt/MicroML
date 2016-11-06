@@ -1,5 +1,27 @@
 %{
     #include <stdio.h>
+    #include <string.h>
+
+    #include "y.tab.h"
+
+    extern YYSTYPE yylval;
+
+    char atoc(const char* str) {
+      switch(str[1]) {
+        case '\"': return '\"';
+        case '\'': return '\'';
+        case '\\': return '\\';
+        case '0':  return '\0';
+        case 'a':  return '\a';
+        case 'b':  return '\b';
+        case 'f':  return '\f';
+        case 'n':  return '\n';
+        case 'r':  return '\r';
+        case 't':  return '\t';
+        case 'v':  return '\v';
+        default:   return 0;
+      }
+    }
 %}
 
 %option noyywrap
@@ -7,10 +29,12 @@
 /* helpers */
 DIGIT  [0-9]
 LETTER [a-zA-Z]
-UNIT   "{}"|"()"
+
 LP     "("
 RP     ")"
-WS     (" "|"\n"|"\t")
+UNIT   "{}"|"()"
+NL     "\n"
+WS     (" "|"\t")
 CHR    \'(\\.|[^\'])\'
 STR    \"(\\.|[^\"])*\"
 
@@ -47,18 +71,12 @@ OR     "||"
 NOT    "!"
 
 /* arithmetic operators */
-ADDI   "+"
-ADDR   "+."
-SUBI   "-"
-SUBR   "-."
-MULI   "*"
-MULR   "*."
-DIVI   "/"
-DIVR   "/."
-MODI   "%"
-
-NEGI   "~"
-NEGR   "~."
+ADD   "+"
+SUB   "-"
+MUL   "*"
+DIV   "/"
+MOD   "%"
+NEG   "~"
 
 /* values and functions */
 BIND   "="
@@ -77,70 +95,63 @@ GET    "."
 ERR    . /* things between two errors may also be erroneous */
 
 %%
-  printf("\nTokenizer running, ^D to exit\n");
 
+{LP}   { ECHO; return LP; }
+{RP}   { ECHO; return RP; }
 
-{CBEG} { printf("CBEG\n"); }
-{CEND} { printf("CEND\n"); }
+{CBEG} { ECHO; return CBEG; }
+{CEND} { ECHO; return CEND; }
 
-{LET}  { printf("LET\n"); }
-{IN}   { printf("IN\n"); }
-{END}  { printf("END\n"); }
+{LET}  { ECHO; return LET; }
+{IN}   { ECHO; return IN; }
+{END}  { ECHO; return END; }
 
-{IF}   { printf("IF\n"); }
-{THEN} { printf("THEN\n"); }
-{ELSE} { printf("ELSE\n"); }
+{IF}   { ECHO; return IF; }
+{THEN} { ECHO; return THEN; }
+{ELSE} { ECHO; return ELSE; }
 
-{EQ}   { printf("EQ\n"); }
-{NE}   { printf("NE\n"); }
-{LT}   { printf("LT\n"); }
-{LE}   { printf("LE\n"); }
-{GT}   { printf("GT\n"); }
-{GE}   { printf("GE\n"); }
+{EQ}   { ECHO; return EQ; }
+{NE}   { ECHO; return NE; }
+{LT}   { ECHO; return LT; }
+{LE}   { ECHO; return LE; }
+{GT}   { ECHO; return GT; }
+{GE}   { ECHO; return GE; }
 
-{BOOL} { printf("BOOL{%s}\n", yytext); }
-{AND}  { printf("AND\n"); }
-{OR}   { printf("OR\n"); }
-{NOT}  { printf("NOT\n"); }
+{BOOL} { yylval = new BoolNode(yytext == "true"); ECHO; return BOOL; }
+{AND}  { ECHO; return AND; }
+{OR}   { ECHO; return OR; }
+{NOT}  { ECHO; return NOT; }
 
-{ADDI} { printf("ADDI\n"); }
-{ADDR} { printf("ADDR\n"); }
-{SUBI} { printf("SUBI\n"); }
-{SUBR} { printf("SUBR\n"); }
-{MULI} { printf("MULI\n"); }
-{MULR} { printf("MULR\n"); }
-{DIVI} { printf("DIVI\n"); }
-{DIVR} { printf("DIVR\n"); }
+{ADD} { ECHO; return ADD; }
+{SUB} { ECHO; return SUB; }
+{MUL} { ECHO; return MUL; }
+{DIV} { ECHO; return DIV; }
 
-{BIND} { printf("BIND\n"); }
-{VAL}  { printf("VAL\n"); }
-{FUN}  { printf("FUN\n"); }
-{FN}   { printf("FN\n"); }
-{UNIT} { printf("UNIT\n"); }
-{CONS} { printf("CONS\n"); }
+{BIND} { ECHO; return BIND; }
+{VAL}  { ECHO; return VAL; }
+{FUN}  { ECHO; return FUN; }
+{FN}   { ECHO; return FN; }
+{UNIT} { ECHO; return UNIT; }
+{CONS} { ECHO; return CONS; }
 
-{RBEG} { printf("RBEG\n"); }
-{REND} { printf("REND\n"); }
-{LBEG} { printf("LBEG\n"); }
-{LEND} { printf("LEND\n"); }
-{SEP}  { printf("SEP\n"); }
-{GET}  { printf("GET\n"); }
+{RBEG} { ECHO; return RBEG; }
+{REND} { ECHO; return REND; }
+{LBEG} { ECHO; return LBEG; }
+{LEND} { ECHO; return LEND; }
+{SEP}  { ECHO; return SEP; }
+{GET}  { ECHO; return GET; }
 
-{STR}  { printf("STR{%s}\n", yytext); }
-{CHR}  { printf("CHR{%s}\n", yytext); }
+{CHR}  { if (*yytext == '/') yylval = new CharNode(atoc(yytext));
+         else yylval = new CharNode(*yytext); ECHO; return CHR; }
 
-{ID}   { printf("ID{%s}\n", yytext); }
-{REAL} { printf("REAL{%s}\n", yytext); }
-{INT}  { printf("INT{%s}\n", yytext); }
+{ID}   { yylval = new IdentifierNode(yytext); ECHO; return ID; }
+{REAL} { yylval = new RealNode(atof(yytext)); ECHO; return REAL; }
+{INT}  { yylval = new IntNode(atoi(yytext)); ECHO; return INT; }
 
-{LP}   { printf("LP\n"); }
-{RP}   { printf("RP\n"); }
+{NL}   { ECHO; return NL; }
 {WS}   { }
 
 
-%%s
+%%
 
-int main() {
-  yylex();
-  return 0;
-}
+extern int main();
