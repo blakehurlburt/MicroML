@@ -41,7 +41,11 @@ public:
 class BlockNode : public ASTNode {
 public:
 
-    BlockNode(std::list<StatementNode *> stmnts) : statements(stmnts){
+    // BlockNode(std::list<StatementNode *> stmnts) : statements(stmnts){
+    // }
+
+    void add(StatementNode * s) {
+        statements.push_back(s);
     }
 
     std::string toString() {
@@ -194,7 +198,6 @@ public:
         std::list<std::pair<std::string, CPPExpression *> > l;
 
         for(ValNode* v : fields) {
-            std::cout << v->id->id << ":" << v->val->toString() << std::endl;
             l.push_back(std::make_pair(v->id->id, v->val->translate(funList)));
         }
 
@@ -300,6 +303,18 @@ public:
 
 };
 
+CPPFunction* buildFunction(std::string name, std::string param, std::list<StatementNode *> body,
+                           ExpressionNode* ret, std::list<CPPFunction*> & funList){
+
+    std::list<CPPStatement *> statements;
+    for(StatementNode * s : body) {
+        statements.push_back(s->translate(funList));
+    }
+    statements.push_back(new CPPReturn(ret->translate(funList)));
+    return new CPPFunction(name, param, statements);
+
+}
+
 class IfNode : public ExpressionNode {
 public:
     IfNode(ExpressionNode * cond, ExpressionNode * left, ExpressionNode * right)
@@ -311,7 +326,14 @@ public:
     }
 
     virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
-        return new CPPIfExpression(condition->translate(funList), ifthen->translate(funList), ifelse->translate(funList));
+        std::list<CPPStatement *> statements;
+        statements.push_back( \
+            new CPPIfStatement(condition->translate(funList), \
+                               new CPPReturn(ifthen->translate(funList)), \
+                               new CPPReturn(ifelse->translate(funList))));
+        std::string lambdaNum = std::to_string(funList.size());
+        funList.push_back(new CPPFunction("lambda_" + lambdaNum, "_", statements));
+        return new CPPNativeExpression("lambda_" + lambdaNum, new CPPRecordExpression({}));
     }
 
     ~IfNode(){
@@ -325,18 +347,6 @@ public:
     ExpressionNode * ifelse;
 };
 
-CPPFunction* buildFunction(std::string name, std::string param, std::list<StatementNode *> body,
-                           ExpressionNode* ret, std::list<CPPFunction*> & funList){
-
-    std::list<CPPStatement *> statements;
-    for(StatementNode * s : body) {
-        statements.push_back(s->translate(funList));
-    }
-    statements.push_back(new CPPReturn(ret->translate(funList)));
-    return new CPPFunction(name, param, statements);
-
-}
-
 class FunDeclNode : public StatementNode {
 public:
     FunDeclNode(IdentifierNode * id, IdentifierNode * p, ExpressionNode * expr)
@@ -348,7 +358,7 @@ public:
     }
 
     virtual CPPStatement* translate(std::list<CPPFunction*> & funList) {
-        funList.push_front(buildFunction(fun->id, param->id, std::list<StatementNode *>(), body, funList));
+        funList.push_back(buildFunction(fun->id, param->id, std::list<StatementNode *>(), body, funList));
         return new CPPBinding(fun->id, new CPPFuncExpression(fun->id));
     }
 
@@ -374,8 +384,12 @@ public:
     }
 
     virtual CPPExpression* translate(std::list<CPPFunction*> & funList) {
-        funList.push_front(buildFunction("lambda_" + std::to_string(funList.size()), param->id, std::list<StatementNode *>(), body, funList));
-        return new CPPFuncExpression("lambda_" + std::to_string(funList.size() - 1));
+
+        std::list<CPPStatement *> statements;
+        statements.push_back(new CPPReturn(body->translate(funList)));
+        std::string lambdaNum = std::to_string(funList.size());
+        funList.push_front(new CPPFunction("lambda_" + lambdaNum, param->id, statements));
+        return new CPPFuncExpression("lambda_" + lambdaNum);
     }
 
     ~LambdaNode() {

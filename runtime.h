@@ -38,15 +38,17 @@ public:
 
 class Fun: public Obj {
 public:
-    Fun(Obj * (*func)(Obj*, Environment*)) {
+    Fun(const Obj * (*func)(const Obj*, Environment*), Environment * closureEnv) {
         fun = func;
+        env = closureEnv;
     }
 
     std::string type() {
         return "function";
     }
 
-    Obj* (*fun)(Obj*, Environment*);
+    const Obj* (*fun)(const Obj*, Environment*);
+    Environment *env;
 };
 
 class Bool: public Obj {
@@ -104,8 +106,8 @@ const Obj* makeRecord(std::list < std::pair < std::string, const Obj * >> pairs)
     return new Rec(pairs);
 }
 
-const Obj* makeFun(Obj * (*func)(Obj*, Environment*)) {
-    return new Fun(func);
+const Obj* makeFun(const Obj * (*func)(const Obj*, Environment*), Environment* closureEnv) {
+    return new Fun(func, closureEnv);
 }
 
 class Environment {
@@ -143,6 +145,22 @@ private:
     std::list < std::map < std::string, const Obj * >> envs;
 };
 
+const Obj* invoke(std::string id, const Obj* arg, Environment* env) {
+    const Obj* o = env->lookup(id);
+    if(o->type() != "function") {
+        throw std::runtime_error("not a function");
+    }
+
+    Fun* f = ((Fun*)o);
+
+    Environment * closureEnv = f->env;
+    closureEnv->push();
+    closureEnv->bind(id, env->lookup(id));
+    const Obj * ret = (*(f->fun))(arg,closureEnv);
+    closureEnv->pop();
+    return ret;
+}
+
 const Obj* _add_(const Obj* o, Environment* env) {
     if(o->type() != "record") {
         throw std::runtime_error("not a record");
@@ -152,7 +170,7 @@ const Obj* _add_(const Obj* o, Environment* env) {
     const Obj* r1 = ((Rec*)o)->get("_1");
 
     if(r0->type() == "integer" && r1->type() == "integer") {
-        return makeInt(((const Int*)r0)->value);
+        return makeInt(((const Int*)r0)->value + ((const Int*)r1)->value);
     }
 
     if(r0->type() == "integer" && r1->type() == "real") {
@@ -169,6 +187,132 @@ const Obj* _add_(const Obj* o, Environment* env) {
 
     throw std::runtime_error("addition expression not valid");
     return nullptr;
+}
+
+const Obj* _sub_(const Obj* o, Environment* env) {
+    if(o->type() != "record") {
+        throw std::runtime_error("not a record");
+    }
+
+    const Obj* r0 = ((Rec*)o)->get("_0");
+    const Obj* r1 = ((Rec*)o)->get("_1");
+
+    if(r0->type() == "integer" && r1->type() == "integer") {
+        return makeInt(((const Int*)r0)->value - ((const Int*)r1)->value);
+    }
+
+    if(r0->type() == "integer" && r1->type() == "real") {
+        return makeReal(((const Int*)r0)->value - ((const Real*) r1)->value);
+    }
+
+    if(r0->type() == "real" && r1->type() == "integer") {
+        return makeReal(((Real*) r0)->value - ((const Int*)r0)->value);
+    }
+
+    if(r0->type() == "real" && r1->type() == "real") {
+        return makeReal(((const Real*) r0)->value - ((const Real*) r1)->value);
+    }
+
+    throw std::runtime_error("sub expression not valid");
+    return nullptr;
+}
+
+const Obj* _mul_(const Obj* o, Environment* env) {
+    if(o->type() != "record") {
+        throw std::runtime_error("not a record");
+    }
+
+    const Obj* r0 = ((Rec*)o)->get("_0");
+    const Obj* r1 = ((Rec*)o)->get("_1");
+
+    if(r0->type() == "integer" && r1->type() == "integer") {
+        return makeInt(((const Int*)r0)->value * ((const Int*)r1)->value);
+    }
+
+    if(r0->type() == "integer" && r1->type() == "real") {
+        return makeReal(((const Int*)r0)->value * ((const Real*) r1)->value);
+    }
+
+    if(r0->type() == "real" && r1->type() == "integer") {
+        return makeReal(((Real*) r0)->value * ((const Int*)r0)->value);
+    }
+
+    if(r0->type() == "real" && r1->type() == "real") {
+        return makeReal(((const Real*) r0)->value * ((const Real*) r1)->value);
+    }
+
+    throw std::runtime_error("mul expression not valid");
+    return nullptr;
+}
+
+const Obj* _div_(const Obj* o, Environment* env) {
+    if(o->type() != "record") {
+        throw std::runtime_error("not a record");
+    }
+
+    const Obj* r0 = ((Rec*)o)->get("_0");
+    const Obj* r1 = ((Rec*)o)->get("_1");
+
+    if(r0->type() == "integer" && r1->type() == "integer") {
+        return makeInt(((const Int*)r0)->value / ((const Int*)r1)->value);
+    }
+
+    if(r0->type() == "integer" && r1->type() == "real") {
+        return makeReal(((const Int*)r0)->value / ((const Real*) r1)->value);
+    }
+
+    if(r0->type() == "real" && r1->type() == "integer") {
+        return makeReal(((Real*) r0)->value / ((const Int*)r0)->value);
+    }
+
+    if(r0->type() == "real" && r1->type() == "real") {
+        return makeReal(((const Real*) r0)->value / ((const Real*) r1)->value);
+    }
+
+    throw std::runtime_error("div expression not valid");
+    return nullptr;
+}
+
+const Obj* _lt_(const Obj* o, Environment* env) {
+    if(o->type() != "record") {
+        throw std::runtime_error("not a record");
+    }
+
+    const Obj* r0 = ((Rec*)o)->get("_0");
+    const Obj* r1 = ((Rec*)o)->get("_1");
+
+    if(r0->type() == "integer" && r1->type() == "integer") {
+        return makeBool(((const Int*)r0)->value < ((const Int*)r1)->value);
+    }
+
+    if(r0->type() == "integer" && r1->type() == "real") {
+        return makeBool(((const Int*)r0)->value < ((const Real*) r1)->value);
+    }
+
+    if(r0->type() == "real" && r1->type() == "integer") {
+        return makeBool(((Real*) r0)->value < ((const Int*)r0)->value);
+    }
+
+    if(r0->type() == "real" && r1->type() == "real") {
+        return makeBool(((const Real*) r0)->value < ((const Real*) r1)->value);
+    }
+
+    throw std::runtime_error("div expression not valid");
+    return nullptr;
+}
+
+bool unwrapBool(const Obj * o) {
+    if(o->type() != "boolean") {
+        throw std::runtime_error("not a boolean");
+    }
+    return ((Bool*)o)->value;
+}
+
+bool unwrapInt(const Obj * o) {
+    if(o->type() != "integer") {
+        throw std::runtime_error("not an integer, is a " + o->type());
+    }
+    return ((Int*)o)->value;
 }
 
 #endif

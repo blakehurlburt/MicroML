@@ -7,14 +7,16 @@ std::string generateCode(std::list < CPPFunction* > functions) {
     str += "#include \"runtime.h\"\n";
     str += "#include <utility>\n";
     str += "#include <iostream>\n";
-    str += "int main() {\n";
-    str += "\tstd::cout << \"Hello, world!\" << std::endl;\n";
-    str += "\treturn 0;\n";
-    str += "}\n";
+    str += "\n\n\n";
 
     for(CPPFunction* f : functions) {
         str += f->genCode();
     }
+
+    str += "int main() {\n";
+    str += "\tstd::cout << unwrapInt(_main_(makeRecord({}), new Environment())) << std::endl;\n";
+    str += "\treturn 0;\n";
+    str += "}\n";
 
     return str;
 }

@@ -12,18 +12,18 @@ BlockNode* factorial() {
                                       new IdentifierNode("n"), \
                                       new IfNode( \
                                           new BinOpNode( \
-                                              new IdentifierNode("<"), \
+                                              new IdentifierNode("lt"), \
                                               new IdentifierNode("n"), \
                                               new IntNode(2) \
                                               ), \
                                           new IntNode(1), \
                                           new BinOpNode( \
-                                              new IdentifierNode("*"), \
+                                              new IdentifierNode("mul"), \
                                               new IdentifierNode("n"), \
                                               new InvokeNode( \
                                                   new IdentifierNode("fact"), \
                                                   new BinOpNode( \
-                                                      new IdentifierNode("-"), \
+                                                      new IdentifierNode("sub"), \
                                                       new IdentifierNode("n"), \
                                                       new IntNode(1) \
                                                       ) \

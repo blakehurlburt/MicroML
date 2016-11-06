@@ -88,7 +88,6 @@ public:
     virtual std::string genCode() {
         std::string str =  "makeRecord({";
         for(std::pair < std::string, CPPExpression * > f : fields) {
-            std::cout << f.first  << ":" << ((void*)f.second) << std::endl;
             str += "std::make_pair(\"" + f.first + "\", " + f.second->genCode() + "),";
         }
         if(!fields.empty()) {
@@ -108,31 +107,35 @@ public:
     }
 
     virtual std::string genCode() {
-        return "makeFun(*" + id + ", new Environment(env))";
+        return "makeFun(*" + id + ", new Environment(*env))";
     }
 
     std::string id;
 };
 
-class CPPIfExpression: public CPPExpression {
+class CPPIfStatement: public CPPStatement {
 public:
-    CPPIfExpression(CPPExpression * cond, CPPExpression * left, CPPExpression * right)
+    CPPIfStatement(CPPExpression * cond, CPPStatement * left, CPPStatement * right)
         : condition(cond), ifthen(left), ifelse(right) {
     }
 
-    ~CPPIfExpression(){
+    ~CPPIfStatement(){
         delete condition;
         delete ifthen;
         delete ifelse;
     }
 
     virtual std::string genCode() {
-        return "ifexpr(" + condition->genCode() + "," + ifthen->genCode() + "," + ifelse->genCode() + ")";
+        return "if (unwrapBool(" + condition->genCode() + ")) { \n\t\t" \
+               + ifthen->genCode() \
+               + "\n\t} else {\n\t\t" \
+               + ifelse->genCode() \
+               + "\n\t}";
     }
 
     CPPExpression * condition;
-    CPPExpression * ifthen;
-    CPPExpression * ifelse;
+    CPPStatement * ifthen;
+    CPPStatement * ifelse;
 };
 
 class CPPInvokeExpression: public CPPExpression {
@@ -167,7 +170,7 @@ public:
     }
 
     virtual std::string genCode() {
-        return "env->lookup(\"" + name + "\");";
+        return "env->lookup(\"" + name + "\")";
     }
 
     std::string name;
@@ -200,7 +203,7 @@ public:
     }
 
     virtual std::string genCode() {
-        return "const Obj* ret = " + expr->genCode() + ";";
+        return "ret = " + expr->genCode() + ";";
     }
 
     CPPExpression* expr;
@@ -224,6 +227,7 @@ public:
         std::string fun = "const Obj* " + name + "(const Obj* param, Environment *env) {\n";
         fun += "\tenv->push();\n";
         fun += "\tenv->bind(\"" + param + "\", param);\n";
+        fun += "\tconst Obj* ret = nullptr;\n";
         for(CPPStatement* statement : body) {
             fun += "\t" + statement->genCode() + "\n";
         }
