@@ -50,13 +50,8 @@ extern int yylex();
 
 %%
 
-block:
-     | block state
-
-state: LP state RP {$$ = $2;}
-    | VAL ID BIND exp {blocks.top()->add(new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)); $$ = new CharNode('@');}
-    | FUN ID ID BIND exp {blocks.top()->add(new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)); $$ = new CharNode('@');}
-    | state state {$$ = (((CharNode*)$1)->value == '@' && ((CharNode*)$2)->value == '@')? new CharNode('@') : new CharNode('!');}
+state: VAL ID BIND exp {blocks.top()->add(new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4)); $$ = $1;}
+    | FUN ID ID BIND exp {blocks.top()->add(new FunDeclNode((IdentifierNode*) $2, (IdentifierNode*) $3, (ExpressionNode*) $5)); $$ = $1;}
 
 exp: LP exp RP {$$ = $2;}
   | NEG exp {$$ = new InvokeNode(new IdentifierNode("_neg_"), (ExpressionNode*) $2);}
@@ -79,11 +74,7 @@ exp: LP exp RP {$$ = $2;}
   | REAL {$$ = $1;}
   | BOOL {$$ = $1;}
   | ID {$$ = $1;}
-  | LET block IN exp END {$$ }
   ;
-
-other: LET {blocks.push(new BlockNode()); } block IN exp END {$$ = new LetNode(blocks.top(), (ExpressionNode*) $2); blocks.pop();}
-
 
 %%
 
