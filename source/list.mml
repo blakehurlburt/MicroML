@@ -1,0 +1,15 @@
+fun contains tup = tup._1 != [] && (tup._0 == tup._1.head) || contains ( { _0 = tup._0, _1 = tup._1.tail } )
+
+fun push_front tup = { head = tup._0, tail = tup._1 }
+
+fun push_back tup = if tup._1 == [] then [ tup._0 ] else { head = tup._0.head, tail = push_back ( { _0 = tup._0, _1 = tup._1_tail } ) }
+
+fun remove tup = if tup._1 == [] then [] else if tup._0 == tup._1.head then tup._1.tail else { head = tup._1.head, tail = remove ( { _0 = tup._0, _1 = tup._1.tail } ) }
+
+fun size list = if list == [] then 0 else 1 + size(list.tail)
+
+fun index tup = if tup._1 == [] then ~1 else if tup._0 == tup._1.head then 0 else 1 + index ( { _0 = tup._0, _1 = tup._1.tail } )
+
+fun append lists = if lists._0 == [] then lists._1 else {head = lists._0.head, tail = append ( { _0 = lists._0.tail, _1 = lists._1} ) }
+
+fun enter _ = 0

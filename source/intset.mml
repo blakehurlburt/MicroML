@@ -1,0 +1,11 @@
+fun add x =
+  if x._1 == [] then [x]
+  else if x._0 == (car x._1) then x._1
+  else (car x._1) :: add {_0 = x._0, _1 = (cdr x._1)}
+
+fun remove x =
+  if x._1 == [] then []
+  else if x._0 == (car x._1) then (cdr x._1)
+  else (car x._1) :: remove {_0 = x._0, _1 = (cdr x._1)}
+
+fun contains x = x._1 != [] && x._0 == (car x._1) || contains {_0 = x._0, _1 = (cdr x._1)}

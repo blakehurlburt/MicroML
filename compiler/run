@@ -1,0 +1,4 @@
+lex lexer.l;
+yacc -d parser.y;
+g++ -std=c++11 -g3 y.tab.c -o main;
+if [ -n "$1" ]; then ./main < $1; else ./main; fi

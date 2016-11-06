@@ -1,0 +1,12 @@
+val it = [2, 3, 6]
+val emp = [ ]
+val single = [4]
+
+fun spooky ls = if ls.tail == [ ] then ls.head else spooky(ls.tail) / ls.head
+
+fun map mapper = {head = mapper._0 (mapper._1.head), tail = map (mapper._1.tail)}
+
+val mymapper = {_0 = fn x = x*2, _1 = [8, 4, 1.5] }
+
+
+fun enter _ = map (mymapper)

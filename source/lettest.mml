@@ -1,0 +1,1 @@
+let fun add2 y = y + x in add2 6 end

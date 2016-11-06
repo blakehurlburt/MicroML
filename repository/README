@@ -1,0 +1,5 @@
+An implementation of a simple functional programming language targeting the Teensy microcontroller.
+
+This transpiler targets C++, which is then compiled for the Teensy by g++.
+
+Our UB Hacking 2016 project.

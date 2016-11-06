@@ -1,0 +1,2 @@
+val it = "Hello, world!"
+fun enter _ = 0

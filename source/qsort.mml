@@ -1,0 +1,7 @@
+fun append lists = if lists._0 == [] then lists._1 else {head = lists._0.head, tail = append ( { _0 = lists._0.tail, _1 = lists._1) }
+
+fun qsort l = if l == [] then [] else append { _0 = qsort(less({list = l.tail, part = l._0})) , append qsort(more({list = l.tail, part = l._0}))}
+
+fun partLess ls = if ls.list = [] then [] else if ls.list.head < part then ls = ls.list.head + partLess {next = ls.list.next, part = part} else partLess {next = ls.list.next, part = part}
+
+fun partMore lm = if lm.list = [] then [] else if lm.list.head > part then lm = lm.list.head + parMore {next = lm.list.next, part = part} else partMore {next = lm.list.next, part = part}

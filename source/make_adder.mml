@@ -1,0 +1,1 @@
+fun make_adder x = (fn y = y + x)

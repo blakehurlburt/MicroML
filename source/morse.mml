@@ -1,0 +1,17 @@
+val HIGH = 1
+val LOW  = 0
+val INPUT  = 1
+val OUTPUT = 0
+
+val led = 13
+
+val _ = pinMode__({pin=led, mode=OUTPUT})
+
+val unit = 200
+val press = digitalWrite__({pin=led, value=HIGH})
+val clr = {_0 = digitalWrite__({pin=led, value=LOW}), _1 = delay__(unit)}
+val dot = {_0 = press (_), _1 = delay__(unit), _2 = clr (_)}
+val dash = {_0 = press (_), _1 = delay__(3*unit), _2 = clr (_)}
+val letter = delay__(2*unit)
+val word = delay__(6*unit)
+fun pgrm _ = {_0 = dot(_), _1 = dot(_), _2 = dash(_), _3 = letter(_), _4 = dash(_), _5 = dot(_), _6 = dot(_), _7 = dot(_), _8 = word(_) }
