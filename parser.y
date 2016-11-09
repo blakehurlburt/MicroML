@@ -23,11 +23,15 @@ void yyerror(std::string s = "") {
   std::cerr << s << ' ' << yylval->toString() << std::endl;
 }
 
+void p(std::string s) { std::cout << s << std::endl; }
+void p(int i) { std::cout << i << std::endl; }
+
 extern int yylex();
 
-BlockNode* b = new BlockNode();
+BlockNode* b;
 
 %}
+
 
 %token UNIT LP RP NL CHR STR ID REAL INT CBEG CEND CONS
        IF THEN ELSE EQ NE GT GE LT LE BOOL AND OR NOT ADD SUB MUL DIV MOD NEG
@@ -47,21 +51,22 @@ BlockNode* b = new BlockNode();
 
 %%
 
-state: fun { b->add((StatementNode*) $1); }
-     | val { b->add((StatementNode*) $1); }
+program: block  { b = (BlockNode*) $1; }
 
-lelems: exp SEP lelems { $$ = new RecordNode();
-                        ((RecordNode*) $$)->add(new ValNode(new IdentifierNode("head"), (ExpressionNode*) $1));
-                        ((RecordNode*) $$)->add(new ValNode(new IdentifierNode("tail"), (RecordNode*) $3));
-                       }
-      | exp            { $$ = new RecordNode();
-                        ((RecordNode*) $$)->add(new ValNode(new IdentifierNode("head"), (ExpressionNode*) $1));
-                        ((RecordNode*) $$)->add(new ValNode(new IdentifierNode("tail"), new RecordNode()));
-                       }
-      |  /*Empty*/     { $$ = new RecordNode(); }
+block: block state { ((BlockNode*) ($$ = $1))->add((StatementNode*) $2); }
+     | state { $$ = new BlockNode(); ((BlockNode*) $$)->add((StatementNode*) $1); }
 
-exp: base       { $$ = $1; }
-  | LP exp RP   { $$ = $2; }
+state: fun { $$ = $1; }
+     | val { $$ = $1; }
+
+params: params ID { ((ParamListNode*) $1)->add((IdentifierNode*) $2); }
+     | ID         { $$ = new ParamListNode((IdentifierNode*) $1); }
+
+fun: FUN ID params BIND exp { $$ = new FunDeclNode((IdentifierNode*) $2, (ParamListNode*) $3, (ExpressionNode*) $5); }
+
+val: VAL ID BIND exp { $$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4); }
+
+exp: fexp       { $$ = $1; }
   | NEG exp     { $$ = new InvokeNode(new IdentifierNode("_neg_"), (ExpressionNode*) $2); }
   | NOT exp     { $$ = new InvokeNode(new IdentifierNode("_not_"), (ExpressionNode*) $2); }
   | exp MUL exp { $$ = new BinOpNode(new IdentifierNode("_mul_"), (ExpressionNode*) $1, (ExpressionNode*) $3); }
@@ -78,25 +83,34 @@ exp: base       { $$ = $1; }
   | exp AND exp { $$ = new BinOpNode(new IdentifierNode("_and_"), (ExpressionNode*) $1, (ExpressionNode*) $3); }
   | exp OR  exp { $$ = new BinOpNode(new IdentifierNode("_or_"),  (ExpressionNode*) $1, (ExpressionNode*) $3); }
   | IF exp THEN exp ELSE exp {$$ = new IfNode((ExpressionNode*) $2, (ExpressionNode*) $4, (ExpressionNode*) $6); }
-  | LBEG lelems LEND { $$ = $2; }
-  | RBEG relems REND { $$ = $2; }
 
-params: params ID { ((ParamListNode*) $1)->add((IdentifierNode*) $2); }
-      | ID        { $$ = new ParamListNode((IdentifierNode*) $1); }
+fexp: fexp GET ID  { $$ = new GetNode((ExpressionNode*) $1, (IdentifierNode*) $3); }
+  | fexp base { $$ = new InvokeNode((ExpressionNode*) $1, (ExpressionNode*) $2); }
+  | base      {$$ = $1;}
 
-fun: FUN ID params BIND exp { $$ = new FunDeclNode((IdentifierNode*) $2, (ParamListNode*) $3, (ExpressionNode*) $5); }
-
-val: VAL ID BIND exp { $$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4); }
+base: LP exp RP  { $$ = $2; }
+    | INT   { $$ = $1; }
+    | REAL  { $$ = $1; }
+    | BOOL  { $$ = $1; }
+    | ID    { $$ = $1; }
+    | STR   { $$ = $1; }
+    | LBEG lelems LEND { $$ = $2; }
+    | RBEG relems REND { $$ = $2; }
 
 relems: relems SEP ID BIND exp    { $$ = $1; ((RecordNode*)$$)->add(new ValNode((IdentifierNode*) $3, (ExpressionNode*) $5)); }
       | ID BIND exp { $$ = new RecordNode(); ((RecordNode*)$$)->add(new ValNode((IdentifierNode*) $1, (ExpressionNode*) $3)); }
       |  /*Empty*/  { $$ = new RecordNode(); }
 
-base: INT   { $$ = $1; }
-    | REAL  { $$ = $1; }
-    | BOOL  { $$ = $1; }
-    | ID    { $$ = $1; }
-    | STR   { $$ = $1; }
+lelems: exp SEP lelems { $$ = new RecordNode();
+                        ((RecordNode*) $$)->add(new ValNode(new IdentifierNode("head"), (ExpressionNode*) $1));
+                        ((RecordNode*) $$)->add(new ValNode(new IdentifierNode("tail"), (RecordNode*) $3));
+                       }
+      | exp            { $$ = new RecordNode();
+                        ((RecordNode*) $$)->add(new ValNode(new IdentifierNode("head"), (ExpressionNode*) $1));
+                        ((RecordNode*) $$)->add(new ValNode(new IdentifierNode("tail"), new RecordNode()));
+                       }
+      |  /*Empty*/     { $$ = new RecordNode(); }
+
 
 %%
 
@@ -104,6 +118,8 @@ int main() {
   if (yyparse() == 0)
     //std::cout << s->toString() << std::endl;
     std::cout << generateCode(pgrmTranslate(b)) << std::endl;
+  else
+    std::cout << b->toString() << std::endl;
 
   return 0;
 }
