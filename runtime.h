@@ -296,6 +296,34 @@ int unwrapInt(Obj * o) {
     return ((Int*)o)->value;
 }
 
+double unwrapReal(Obj * o) {
+    if(o->type() != "real") {
+        _error_("not an real, is a " + o->type());
+    }
+    return ((Real*)o)->value;
+}
+
+char unwrapChar(Obj * o) {
+    if(o->type() != "char") {
+        _error_("not a char, is a " + o->type());
+    }
+    return ((Char*) o)->value;
+}
+
+std::string unwrapString(Obj * o) {
+    if(o->type() != "record") {
+        _error_("not a string, is a " + o->type());
+    }
+    Rec* rec = (Rec*) o;
+    std::string result = "";
+    while(!rec->r.empty()) {
+        result += unwrapChar(rec->get("head"));
+        rec = (Rec*)rec->get("tail");
+    }
+
+    return result;
+}
+
 Obj* makeInt(int i, Environment* env) {
     Obj * o = new Int(i);
     gcList.push_back(o);
@@ -331,27 +359,28 @@ Obj* makeRecord(std::list < std::pair < std::string, Obj * >> pairs, Environment
     return o;
 }
 
-Obj* makeFun(Obj * (*func)(Obj*, Environment*), Environment* closureEnv, Environment* env) {
+Obj* makeFun(Obj * (*func)(Obj*, Environment*), std::string id, Environment* closureEnv, Environment* env) {
     Obj* o = new Fun(func, closureEnv);
+    closureEnv->bind(id,o);
     gcList.push_back(o);
     env->bind("",o);
     return o;
 }
 
-Obj* invoke(std::string id, Obj* arg, Environment* env) {
-    Obj* o = env->lookup(id);
-    if(o->type() != "function") {
+Obj* invoke(Obj* fun, Obj* arg, Environment* env) {
+    //Obj* o = env->lookup(id);
+    if(fun->type() != "function") {
         _error_("not a function");
     }
 
-    Fun* f = ((Fun*)o);
+    Fun* f = ((Fun*)fun);
 
     Environment * closureEnv = f->env;
-    closureEnv->push();
-    closureEnv->bind(id, env->lookup(id));
+    //closureEnv->push();
+    //closureEnv->bind(id, env->lookup(id));
     Obj * ret = (*(f->fun))(arg,closureEnv);
-    ret->mark();
-    closureEnv->pop();
+    //ret->mark();
+    //closureEnv->pop();
     return ret;
 }
 

@@ -280,7 +280,7 @@ public:
 
 class InvokeNode: public ExpressionNode {
 public:
-    InvokeNode(IdentifierNode * id, ExpressionNode * expr) : fun(id), args(expr) {
+    InvokeNode(ExpressionNode * id, ExpressionNode * expr) : fun(id), args(expr) {
 
     }
 
@@ -289,7 +289,7 @@ public:
     }
 
     virtual CPPExpression* translate(std::list < CPPFunction* > & funList) {
-        return new CPPInvokeExpression(fun->id, args->translate(funList));
+        return new CPPInvokeExpression(fun->translate(funList), args->translate(funList));
     }
 
     ~InvokeNode(){
@@ -297,7 +297,7 @@ public:
         delete args;
     }
 
-    IdentifierNode * fun;
+    ExpressionNode * fun;
     ExpressionNode * args;
 };
 
