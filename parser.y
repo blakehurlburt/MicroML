@@ -12,6 +12,7 @@
 
 #include "AST.h"
 #include "CPPAST.h"
+#include "CodeGen.h"
 #include "Translate.h"
 
 #define YYSTYPE ASTNode*
@@ -24,7 +25,7 @@ void yyerror(std::string s = "") {
 
 extern int yylex();
 
-StatementNode* s;
+BlockNode* b = new BlockNode();
 
 %}
 
@@ -46,7 +47,8 @@ StatementNode* s;
 
 %%
 
-state: fun { $$ = $1; }
+state: fun { b->add((StatementNode*) $1); }
+     | val { b->add((StatementNode*) $1); }
 
 lelems: exp SEP lelems { $$ = new RecordNode();
                         ((RecordNode*) $$)->add(new ValNode(new IdentifierNode("head"), (ExpressionNode*) $1));
@@ -75,13 +77,16 @@ exp: base       { $$ = $1; }
   | exp NE  exp { $$ = new BinOpNode(new IdentifierNode("_ne_"),  (ExpressionNode*) $1, (ExpressionNode*) $3); }
   | exp AND exp { $$ = new BinOpNode(new IdentifierNode("_and_"), (ExpressionNode*) $1, (ExpressionNode*) $3); }
   | exp OR  exp { $$ = new BinOpNode(new IdentifierNode("_or_"),  (ExpressionNode*) $1, (ExpressionNode*) $3); }
+  | IF exp THEN exp ELSE exp {$$ = new IfNode((ExpressionNode*) $2, (ExpressionNode*) $4, (ExpressionNode*) $6); }
   | LBEG lelems LEND { $$ = $2; }
   | RBEG relems REND { $$ = $2; }
 
 params: params ID { ((ParamListNode*) $1)->add((IdentifierNode*) $2); }
       | ID        { $$ = new ParamListNode((IdentifierNode*) $1); }
 
-fun: FUN ID params BIND exp { s = new FunDeclNode((IdentifierNode*) $2, (ParamListNode*) $3, (ExpressionNode*) $5); }
+fun: FUN ID params BIND exp { $$ = new FunDeclNode((IdentifierNode*) $2, (ParamListNode*) $3, (ExpressionNode*) $5); }
+
+val: VAL ID BIND exp { $$ = new ValNode((IdentifierNode*) $2, (ExpressionNode*) $4); }
 
 relems: relems SEP ID BIND exp    { $$ = $1; ((RecordNode*)$$)->add(new ValNode((IdentifierNode*) $3, (ExpressionNode*) $5)); }
       | ID BIND exp { $$ = new RecordNode(); ((RecordNode*)$$)->add(new ValNode((IdentifierNode*) $1, (ExpressionNode*) $3)); }
@@ -97,6 +102,8 @@ base: INT   { $$ = $1; }
 
 int main() {
   if (yyparse() == 0)
-    std::cout << s->toString() << std::endl;
+    //std::cout << s->toString() << std::endl;
+    std::cout << generateCode(pgrmTranslate(b)) << std::endl;
+
   return 0;
 }
