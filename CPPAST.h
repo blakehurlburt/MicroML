@@ -107,7 +107,7 @@ public:
     }
 
     virtual std::string genCode() {
-        return "makeFun(*" + id + ", new Environment(*env), env)";
+        return "makeFun(*" + id + ", \"" + id + "\", new Environment(*env), env)";
     }
 
     std::string id;
@@ -140,14 +140,14 @@ public:
 
 class CPPInvokeExpression: public CPPExpression {
 public:
-    CPPInvokeExpression(std::string f, CPPExpression * a) : fun(f), arg(a) {
+    CPPInvokeExpression(CPPExpression * f, CPPExpression * a) : fun(f), arg(a) {
     }
 
     virtual std::string genCode() {
-        return "invoke(\"" + fun + "\", " + arg->genCode() + ", env)";
+        return "invoke(" + fun->genCode() + ", " + arg->genCode() + ", env)";
     }
 
-    std::string fun;
+    CPPExpression* fun;
     CPPExpression* arg;
 };
 

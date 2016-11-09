@@ -9,7 +9,7 @@ std::list < CPPFunction * > pgrmTranslate(BlockNode * pgrm) {
     for(StatementNode * s : pgrm->statements) {
         statements.push_back(s->translate(functions));
     }
-    statements.push_back(new CPPReturn(new CPPInvokeExpression("enter",new CPPRecordExpression({}))));
+    statements.push_back(new CPPReturn(new CPPInvokeExpression(new CPPLookupExpression("enter"),new CPPRecordExpression({}))));
 
     functions.push_back(new CPPFunction("_main_", "_", statements));
 
