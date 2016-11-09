@@ -1,5 +1,0 @@
-val str1 = "this is \"a string\""
-val chr1 = 'a'
-val chr2 = '\n'
-val chr3 = '"'
-val chr4 = 'wrong'

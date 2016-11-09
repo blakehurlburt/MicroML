@@ -1,2 +1,0 @@
-fun spooky l = if l.tail == [ ] then l.head else spooky (l.tail) / l.head
-fun enter _ = spooky [1, 2, 4, 8, 16] 
