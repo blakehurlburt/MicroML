@@ -372,24 +372,29 @@ CPPFuncExpression* buildFunction(std::string name, std::list < IdentifierNode* >
     //
 
     std::string param = (*begin)->id;
+    std::list < CPPStatement * > statements;
+
+
 
     if(++begin == end) {
-        std::list < CPPStatement * > statements;
+
         for(StatementNode * s : body) {
             statements.push_back(s->translate(funList));
         }
         statements.push_back(new CPPReturn(ret->translate(funList)));
-        funList.push_back(new CPPFunction(name, param, statements));
-        return new CPPFuncExpression(name);
+
+    } else {
+
+        std::string lambdaNum = std::to_string(funList.size());
+        funList.push_front(nullptr); //Just for lambda count to work correctly
+        statements.push_back( \
+            new CPPReturn( \
+                buildFunction("lambda_" + lambdaNum, begin, end, body, ret, funList)));
+        funList.pop_front(); //nullptr
     }
 
-    std::string lambdaNum = std::to_string(funList.size());
-    std::list < CPPStatement * > statements;
-    statements.push_back( \
-        new CPPReturn( \
-            buildFunction("lambda_" + lambdaNum, begin, end, body, ret, funList)));
-
-    return new CPPFuncExpression("lambda_" + lambdaNum);
+    funList.push_back(new CPPFunction(name, param, statements));
+    return new CPPFuncExpression(name);
 
 }
 

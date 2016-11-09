@@ -149,7 +149,7 @@ GET    "."
 {REAL} { yylval = new RealNode(atof(yytext)); return REAL; }
 {INT}  { yylval = new IntNode(atoi(yytext)); return INT; }
 
-{NL}   { return NL; }
+{NL}   { }
 {WS}   { }
 
 %%
