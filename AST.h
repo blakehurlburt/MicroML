@@ -278,6 +278,35 @@ public:
     std::string value;
 };
 
+class ParamListNode: public ASTNode {
+public:
+
+    ParamListNode(IdentifierNode * i){
+        add(i);
+    }
+
+    ~ParamListNode() {
+        for(IdentifierNode * i : params) {
+            delete i;
+        }
+    }
+
+    void add(IdentifierNode* i) {
+        params.push_back(i);
+    }
+
+    std::string toString() {
+        std::string str = "{ParamListNode: ";
+        for(IdentifierNode * i : params) {
+            str += i->toString() + " ";
+        }
+        str += "}";
+        return str;
+    }
+
+    std::list < IdentifierNode * > params;
+};
+
 class InvokeNode: public ExpressionNode {
 public:
     InvokeNode(ExpressionNode * id, ExpressionNode * expr) : fun(id), args(expr) {
@@ -337,15 +366,30 @@ public:
 
 };
 
-CPPFunction* buildFunction(std::string name, std::string param, std::list < StatementNode * > body,
-                           ExpressionNode* ret, std::list < CPPFunction* > & funList){
+CPPFuncExpression* buildFunction(std::string name, std::list < IdentifierNode* > ::iterator begin,
+                                 std::list < IdentifierNode* > ::iterator end, std::list < StatementNode * > body,
+                                 ExpressionNode* ret, std::list < CPPFunction* > & funList) {
+    //
 
-    std::list < CPPStatement * > statements;
-    for(StatementNode * s : body) {
-        statements.push_back(s->translate(funList));
+    std::string param = (*begin)->id;
+
+    if(++begin == end) {
+        std::list < CPPStatement * > statements;
+        for(StatementNode * s : body) {
+            statements.push_back(s->translate(funList));
+        }
+        statements.push_back(new CPPReturn(ret->translate(funList)));
+        funList.push_back(new CPPFunction(name, param, statements));
+        return new CPPFuncExpression(name);
     }
-    statements.push_back(new CPPReturn(ret->translate(funList)));
-    return new CPPFunction(name, param, statements);
+
+    std::string lambdaNum = std::to_string(funList.size());
+    std::list < CPPStatement * > statements;
+    statements.push_back( \
+        new CPPReturn( \
+            buildFunction("lambda_" + lambdaNum, begin, end, body, ret, funList)));
+
+    return new CPPFuncExpression("lambda_" + lambdaNum);
 
 }
 
@@ -383,7 +427,7 @@ public:
 
 class FunDeclNode: public StatementNode {
 public:
-    FunDeclNode(IdentifierNode * id, IdentifierNode * p, ExpressionNode * expr)
+    FunDeclNode(IdentifierNode * id, ParamListNode * p, ExpressionNode * expr)
         : fun(id), param(p), body(expr) {
     }
 
@@ -392,8 +436,8 @@ public:
     }
 
     virtual CPPStatement* translate(std::list < CPPFunction* > & funList) {
-        funList.push_back(buildFunction(fun->id, param->id, std::list < StatementNode * > (), body, funList));
-        return new CPPBinding(fun->id, new CPPFuncExpression(fun->id));
+        return new CPPBinding(fun->id, \
+                              buildFunction(fun->id, param->params.begin(), param->params.end(), std::list < StatementNode * > (), body, funList));
     }
 
     ~FunDeclNode() {
@@ -403,7 +447,7 @@ public:
     }
 
     IdentifierNode * fun;
-    IdentifierNode * param;
+    ParamListNode * param;
     ExpressionNode * body;
 };
 
